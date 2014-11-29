@@ -1,0 +1,18 @@
+{
+  "name": "webgl-scene",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "browserify": "^6.3.3",
+    "gl-matrix": "^2.1.0",
+    "gulp": "^3.8.10",
+    "jquery": "^2.1.1",
+    "vinyl-source-stream": "^1.0.0"
+  }
+}
