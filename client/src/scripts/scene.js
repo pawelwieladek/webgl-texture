@@ -558,10 +558,11 @@ $(document).ready(function() {
             } else if (this.textures.length > 0) {
                 var i = 0;
                 this.textures.forEach(function (textureInfo) {
-                    gl.uniform1i(shaderManager.uniforms.texturesCount, ++i);
+                    gl.uniform1i(shaderManager.uniforms.texturesCount, i + 1);
                     gl.activeTexture(textureInfo.activeId);
                     gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture.get(filter));
-                    gl.uniform1i(shaderManager.uniforms["textureSamplers[" + i + "]"], i++);
+                    shaderManager.bindUniform("textureSamplers[" + i + "]");
+                    gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
                 });
             }
 
@@ -785,7 +786,8 @@ $(document).ready(function() {
         drawLights();
 
         var walls = new Drawable(Cube);
-        walls.addTexture(gl.TEXTURE0, textureManager.getTexture("crowd"));
+        walls.addTexture(gl.TEXTURE0, textureManager.getTexture("floor_1"));
+        walls.addTexture(gl.TEXTURE1, textureManager.getTexture("signs"));
         walls.draw(viewMatrix, projectionMatrix);
     }
 
