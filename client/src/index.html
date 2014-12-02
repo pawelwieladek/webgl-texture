@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>webgl-scene</title>
+    <link rel="stylesheet" href="styles/styles.css">
+</head>
+<body>
+
+<canvas id="scene" width="500" height="500"></canvas>
+<script type="text/javascript" src="lib/jquery.min.js"></script>
+<script type="text/javascript" src="lib/gl-matrix.js"></script>
+<script id="shader-fs" type="x-shader/x-fragment">
+precision mediump float;
+
+const int MAX_LIGHTS = 10;
+
+varying vec4 vPosition;
+varying vec3 vNormal;
+varying vec4 vEye;
+varying vec2 vTextureCoord;
+
+struct DirectionalLight {
+    vec3 direction;
+    vec3 diffuseColor;
+    vec3 ambientColor;
+};
+
+struct PointLight {
+    vec3 position;
+    vec3 ambientColor;
+    vec3 diffuseColor;
+    float constantAttenuation;
+    float linearAttenuation;
+    float exponentAttenuation;
+};
+
+struct SpotLight {
+    vec3 position;
+    vec3 diffuseColor;
+    vec3 direction;
+    float cosOuterAngle;
+    float cosInnerAngle;
+    float range;
+};
+
+uniform int directionalLightsCount;
+uniform int pointLightsCount;
+uniform int spotLightsCount;
+
+uniform DirectionalLight directionalLights[MAX_LIGHTS];
+uniform PointLight pointLights[MAX_LIGHTS];
+uniform SpotLight spotLights[MAX_LIGHTS];
+
+uniform bool uUseTexture;
+uniform sampler2D uSampler;
+uniform bool uUseSecondTexture;
+uniform sampler2D uSecondSampler;
+uniform bool uUseColor;
+uniform vec3 uColor;
+
+vec4 getDirectionalLightColor(const DirectionalLight directionalLight, vec3 normal) {
+    float diffuse = max(0.0, dot(normal, -directionalLight.direction));
+    return vec4(directionalLight.ambientColor + diffuse * directionalLight.diffuseColor, 1.0);
+}
+
+vec4 getPointLightColor(const PointLight pointLight, vec3 position, vec3 normal) {
+    vec3 positionToLight = position - pointLight.position;
+    float distance = length(positionToLight);
+    positionToLight = normalize(positionToLight);
+
+    float diffuse = max(0.0, dot(normal, -positionToLight));
+    float attenuation = pointLight.constantAttenuation + pointLight.linearAttenuation * distance + pointLight.exponentAttenuation * distance * distance;
+
+    return vec4(pointLight.ambientColor + pointLight.diffuseColor * diffuse / attenuation, 1.0);
+}
+
+vec4 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
+    vec3 L = spotLight.position - position;
+    float distance = length(L);
+    L = normalize(L);
+
+    float spotEffect = smoothstep(spotLight.cosOuterAngle, spotLight.cosInnerAngle, dot(L, -spotLight.direction));
+    float attenuation = smoothstep(spotLight.range, 0.0, distance);
+    float diffuse = max(dot(normal, L), 0.0);
+
+    return vec4(diffuse * spotLight.diffuseColor * spotEffect * attenuation, 1.0);
+}
+
+vec4 getColor(bool useColor, vec3 color, bool useTexture, sampler2D uSampler, bool useSecondTexture, sampler2D uSecondSampler, vec2 vTextureCoord) {
+    if (useColor) {
+        return vec4(color, 1.0);
+    }
+    if (useTexture) {
+        vec4 color = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        if (useSecondTexture) {
+            return color + texture2D(uSecondSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+        }
+        return color;
+    }
+    return vec4(0.0, 0.0, 0.0, 1.0);
+}
+
+void main(void) {
+
+    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+
+    for(int i = 0; i < MAX_LIGHTS; i++) {
+        if(i < directionalLightsCount)
+            color += getDirectionalLightColor(directionalLights[i], vNormal);
+
+        if(i < pointLightsCount)
+            color += getPointLightColor(pointLights[i], vPosition.xyz, vNormal);
+
+        if(i < spotLightsCount)
+            color += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
+    }
+
+    gl_FragColor = color * getColor(uUseColor, uColor, uUseTexture, uSampler, uUseSecondTexture, uSecondSampler, vTextureCoord);
+}
+</script>
+
+<script id="shader-vs" type="x-shader/x-vertex">
+attribute vec3 aVertexPosition;
+attribute vec3 aVertexNormal;
+attribute vec2 aTextureCoord;
+
+uniform mat4 uModelMatrix;
+uniform mat4 uViewMatrix;
+uniform mat4 uProjectionMatrix;
+uniform mat3 uNormalMatrix;
+
+varying vec4 vPosition;
+varying vec3 vNormal;
+varying vec4 vEye;
+varying vec2 vTextureCoord;
+
+void main(void) {
+    vNormal = uNormalMatrix * aVertexNormal;
+    vTextureCoord = aTextureCoord;
+    vPosition = uModelMatrix * vec4(aVertexPosition, 1.0);
+    vEye = uViewMatrix * vPosition;
+    gl_Position = uProjectionMatrix * vEye;
+}
+</script>
+<script type="text/javascript" src="scripts/scene.js"></script>
+</body>
+</html>

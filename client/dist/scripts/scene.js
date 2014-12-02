@@ -151,10 +151,10 @@ $(document).ready(function() {
     function initTextures() {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-        initTexture("floor_1.jpg", floor1Textures);
-        initTexture("ceiling.jpg", ceilingTextures);
-        initTexture("crowd.jpg", crowdTextures);
-        initTexture("signs.jpg", signsTextures);
+        initTexture("images/floor_1.jpg", floor1Textures);
+        initTexture("images/ceiling.jpg", ceilingTextures);
+        initTexture("images/crowd.jpg", crowdTextures);
+        initTexture("images/signs.jpg", signsTextures);
     }
 
     var modelMatrix = mat4.create();
