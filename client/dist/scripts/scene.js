@@ -1,18 +1,90 @@
 $(document).ready(function() {
 
-    var gl;
+    function Scene(canvas) {
+        this.canvas = canvas;
+        this.camera = new Camera();
+        this.keyboard = new Keyboard();
+        this.shaderManager = new ShaderManager();
+        this.lightManager = new LightManager();
+        this.textureManager = new TextureManager();
+        this.projectionMatrix = mat4.create();
+        this.drawables = [];
 
-    function initGL(canvas) {
+        window.requestAnimFrame = (function() {
+            return window.requestAnimationFrame ||
+                window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
+                    window.setTimeout(callback, 1000/60);
+                };
+        })();
+
         try {
-            gl = canvas.getContext("experimental-webgl");
-            gl.viewportWidth = canvas.width;
-            gl.viewportHeight = canvas.height;
-        } catch (e) {
+            window.gl = canvas.getContext("experimental-webgl");
+            window.gl.viewportWidth = this.canvas.width;
+            window.gl.viewportHeight = this.canvas.height;
         }
-        if (!gl) {
+        catch (e) {
+            console.log(e);
+        }
+
+        if (!window.gl) {
             alert("Could not initialise WebGL");
         }
+
+        this.shaderManager.init();
     }
+
+    Scene.prototype = {
+        getProjectionMatrix: function() {
+            mat4.perspective(this.projectionMatrix, 45, window.gl.viewportWidth / window.gl.viewportHeight, 0.1, 100.0);
+            return this.projectionMatrix;
+        },
+        addDrawable: function(drawable) {
+            this.drawables.push(drawable);
+        },
+        addPointLight: function(light) {
+            this.lightManager.addPointLight(light);
+        },
+        loadTextures: function(textureList) {
+            this.textureManager.init(textureList);
+        },
+        getTexture: function(name) {
+            return this.textureManager.getTexture(name);
+        },
+        getCamera: function() {
+            return this.camera;
+        },
+        getTextureManager: function() {
+            return this.textureManager;
+        },
+        bindKey: function(keyCode, handler, action) {
+            this.keyboard.bind(keyCode, handler, action);
+        },
+        draw: function() {
+            window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+            window.gl.enable(window.gl.DEPTH_TEST);
+            window.gl.viewport(0, 0, window.gl.viewportWidth, window.gl.viewportHeight);
+            window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
+
+            this.keyboard.handle();
+
+            this.lightManager.draw(this.shaderManager);
+            this.drawables.forEach(function(drawable) {
+                drawable.draw(this.shaderManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
+            }.bind(this));
+        },
+        run: function() {
+            var self = this;
+            function tick() {
+                requestAnimFrame(tick);
+                self.draw();
+            }
+            tick();
+        }
+    };
 
     function ShaderManager() {
         this.program = {};
@@ -38,18 +110,18 @@ $(document).ready(function() {
 
             var shader;
             if (shaderScript.type == "x-shader/x-fragment") {
-                shader = gl.createShader(gl.FRAGMENT_SHADER);
+                shader = window.gl.createShader(window.gl.FRAGMENT_SHADER);
             } else if (shaderScript.type == "x-shader/x-vertex") {
-                shader = gl.createShader(gl.VERTEX_SHADER);
+                shader = window.gl.createShader(window.gl.VERTEX_SHADER);
             } else {
                 return null;
             }
 
-            gl.shaderSource(shader, str);
-            gl.compileShader(shader);
+            window.gl.shaderSource(shader, str);
+            window.gl.compileShader(shader);
 
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                alert(gl.getShaderInfoLog(shader));
+            if (!window.gl.getShaderParameter(shader, window.gl.COMPILE_STATUS)) {
+                alert(window.gl.getShaderInfoLog(shader));
                 return null;
             }
 
@@ -60,25 +132,25 @@ $(document).ready(function() {
             var fragmentShader = this.getShaderSource("shader-fs");
             var vertexShader = this.getShaderSource("shader-vs");
 
-            this.program = gl.createProgram();
-            gl.attachShader(this.program, vertexShader);
-            gl.attachShader(this.program, fragmentShader);
-            gl.linkProgram(this.program);
+            this.program = window.gl.createProgram();
+            window.gl.attachShader(this.program, vertexShader);
+            window.gl.attachShader(this.program, fragmentShader);
+            window.gl.linkProgram(this.program);
 
-            if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {
+            if (!window.gl.getProgramParameter(this.program, window.gl.LINK_STATUS)) {
                 alert("Could not initialise shaders");
             }
 
-            gl.useProgram(this.program);
+            window.gl.useProgram(this.program);
         },
 
         bindAttribute: function(name) {
-            this.attributes[name] = gl.getAttribLocation(this.program, name);
-            gl.enableVertexAttribArray(this.attributes[name]);
+            this.attributes[name] = window.gl.getAttribLocation(this.program, name);
+            window.gl.enableVertexAttribArray(this.attributes[name]);
         },
 
         bindUniform: function(name) {
-            this.uniforms[name] = gl.getUniformLocation(this.program, name);
+            this.uniforms[name] = window.gl.getUniformLocation(this.program, name);
         },
         getAttribute: function(name) {
             return this.attributes[name];
@@ -113,10 +185,6 @@ $(document).ready(function() {
             this.bindLocations();
         }
     };
-    
-    var shaderManager;
-
-    var textureManager;
 
     function TextureManager() {
         this.filter = 0;
@@ -129,6 +197,10 @@ $(document).ready(function() {
         },
         getTexture: function(name) {
             return this.textures[name].getVersion(this.filter);
+        },
+        changeFilter: function() {
+            debugger;
+            this.filter = (this.filter + 1) % 3;
         },
         init: function(textures) {
             textures.forEach(function(textureInfo) {
@@ -144,7 +216,7 @@ $(document).ready(function() {
         var image = new Image();
 
         for (i=0; i < 3; i++) {
-            var texture = gl.createTexture();
+            var texture = window.gl.createTexture();
             texture.image = image;
             this.versions.push(texture);
         }
@@ -155,25 +227,25 @@ $(document).ready(function() {
         image.src = src;
 
         function handleLoaded(textureVersions) {
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+            window.gl.pixelStorei(window.gl.UNPACK_FLIP_Y_WEBGL, true);
 
-            gl.bindTexture(gl.TEXTURE_2D, textureVersions[0]);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureVersions[0].image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[0]);
+            window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[0].image);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.NEAREST);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.NEAREST);
 
-            gl.bindTexture(gl.TEXTURE_2D, textureVersions[1]);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureVersions[1].image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[1]);
+            window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[1].image);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR);
 
-            gl.bindTexture(gl.TEXTURE_2D, textureVersions[2]);
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, textureVersions[2].image);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-            gl.generateMipmap(gl.TEXTURE_2D);
+            window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[2]);
+            window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[2].image);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
+            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR_MIPMAP_NEAREST);
+            window.gl.generateMipmap(window.gl.TEXTURE_2D);
 
-            gl.bindTexture(gl.TEXTURE_2D, null);
+            window.gl.bindTexture(window.gl.TEXTURE_2D, null);
         }
     }
 
@@ -183,17 +255,13 @@ $(document).ready(function() {
         }
     };
 
-    var modelMatrix = mat4.create();
-    var viewMatrix = mat4.create();
-    var projectionMatrix = mat4.create();
-
     function Camera() {
         this.viewMatrix = mat4.create();
-        this.position = vec3.fromValues(0.0, 0.0, 0.0);
+        this.position = vec3.fromValues(0.0, 0.0, 10.0);
         this.tangent = vec3.fromValues(1.0, 0.0, 0.0);
         this.forward = vec3.fromValues(0.0, 0.0, 1.0);
         this.up = vec3.fromValues(0.0, 1.0, 0.0);
-        this.translateStep = 0.05;
+        this.translateStep = 0.1;
         this.rotateStep = Math.PI / 180;
         this.pitchAngle = 0.0;
         this.yawAngle = 0.0;
@@ -506,7 +574,7 @@ $(document).ready(function() {
                 array: [
                     0, 1, 2, 0, 2, 3
                 ],
-                numItems: 36
+                numItems: 6
             }
         }
     }
@@ -515,34 +583,35 @@ $(document).ready(function() {
         this.primitive = Primitive();
         this.buffers = {
             vertex: {
-                buffer: gl.createBuffer(),
+                buffer: window.gl.createBuffer(),
                 itemSize: this.primitive.vertex.itemSize
             },
             normal: {
-                buffer: gl.createBuffer(),
+                buffer: window.gl.createBuffer(),
                 itemSize: this.primitive.normal.itemSize
             },
             texture: {
-                buffer: gl.createBuffer(),
+                buffer: window.gl.createBuffer(),
                 itemSize: this.primitive.texture.itemSize
             },
             index: {
-                buffer: gl.createBuffer(),
+                buffer: window.gl.createBuffer(),
                 numItems: this.primitive.index.numItems
             }
         };
+        this.color = null;
         this.textures = [];
         this.modelMatrix = mat4.create();
         mat4.identity(this.modelMatrix);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.vertex.array), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.normal.array), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texture.buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.texture.array), gl.STATIC_DRAW);
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.primitive.index.array), gl.STATIC_DRAW);
+        window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
+        window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array(this.primitive.vertex.array), window.gl.STATIC_DRAW);
+        window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.normal.buffer);
+        window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array(this.primitive.normal.array), window.gl.STATIC_DRAW);
+        window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.texture.buffer);
+        window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array(this.primitive.texture.array), window.gl.STATIC_DRAW);
+        window.gl.bindBuffer(window.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
+        window.gl.bufferData(window.gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.primitive.index.array), window.gl.STATIC_DRAW);
     }
 
     Drawable.prototype = {
@@ -552,6 +621,9 @@ $(document).ready(function() {
                 texture: texture
             })
         },
+        setColor: function(color) {
+            this.color = color;
+        },
         getNormalMatrix: function() {
             var normalMatrix = mat3.create();
             mat3.fromMat4(normalMatrix, this.modelMatrix);
@@ -559,308 +631,178 @@ $(document).ready(function() {
             mat3.transpose(normalMatrix, normalMatrix);
             return normalMatrix;
         },
-        draw: function(viewMatrix, projectionMatrix, color) {
+        getModelMatrix: function() {
+            return this.modelMatrix;
+        },
+        transform: function(transformation, value) {
+            transformation(this.modelMatrix, this.modelMatrix, value);
+        },
+        draw: function(shaderManager, viewMatrix, projectionMatrix) {
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
-            gl.vertexAttribPointer(shaderManager.getAttribute("aVertexPosition"), this.buffers.vertex.itemSize, gl.FLOAT, false, 0, 0);
+            window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
+            window.gl.vertexAttribPointer(shaderManager.getAttribute("aVertexPosition"), this.buffers.vertex.itemSize, window.gl.FLOAT, false, 0, 0);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal.buffer);
-            gl.vertexAttribPointer(shaderManager.getAttribute("aVertexNormal"), this.buffers.normal.itemSize, gl.FLOAT, false, 0, 0);
+            window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.normal.buffer);
+            window.gl.vertexAttribPointer(shaderManager.getAttribute("aVertexNormal"), this.buffers.normal.itemSize, window.gl.FLOAT, false, 0, 0);
 
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texture.buffer);
-            gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, gl.FLOAT, false, 0, 0);
+            window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.texture.buffer);
+            window.gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, window.gl.FLOAT, false, 0, 0);
 
-            if (color) {
-                gl.uniform3fv(shaderManager.getUniform("uColor"), color);
-                gl.uniform1i(shaderManager.getUniform("texturesCount"), 0);
+            if (this.color) {
+                window.gl.uniform3fv(shaderManager.getUniform("uColor"), this.color);
+                window.gl.uniform1i(shaderManager.getUniform("texturesCount"), 0);
             } else if (this.textures.length > 0) {
                 var i = 0;
                 this.textures.forEach(function (textureInfo) {
-                    gl.uniform1i(shaderManager.getUniform("texturesCount"), i + 1);
-                    gl.activeTexture(textureInfo.activeId);
-                    gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture);
+                    window.gl.uniform1i(shaderManager.getUniform("texturesCount"), i + 1);
+                    window.gl.activeTexture(textureInfo.activeId);
+                    window.gl.bindTexture(window.gl.TEXTURE_2D, textureInfo.texture);
                     shaderManager.bindUniform("textureSamplers[" + i + "]");
-                    gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
+                    window.gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
                 });
             }
 
             var normalMatrix = this.getNormalMatrix();
-            gl.uniformMatrix4fv(shaderManager.getUniform("uModelMatrix"), false, this.modelMatrix);
-            gl.uniformMatrix4fv(shaderManager.getUniform("uViewMatrix"), false, viewMatrix);
-            gl.uniformMatrix4fv(shaderManager.getUniform("uProjectionMatrix"), false, projectionMatrix);
-            gl.uniformMatrix3fv(shaderManager.getUniform("uNormalMatrix"), false, normalMatrix);
+            window.gl.uniformMatrix4fv(shaderManager.getUniform("uModelMatrix"), false, this.modelMatrix);
+            window.gl.uniformMatrix4fv(shaderManager.getUniform("uViewMatrix"), false, viewMatrix);
+            window.gl.uniformMatrix4fv(shaderManager.getUniform("uProjectionMatrix"), false, projectionMatrix);
+            window.gl.uniformMatrix3fv(shaderManager.getUniform("uNormalMatrix"), false, normalMatrix);
 
             if (this.buffers.index) {
-                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
-                gl.drawElements(gl.TRIANGLES, this.buffers.index.numItems, gl.UNSIGNED_SHORT, 0);
+                window.gl.bindBuffer(window.gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
+                window.gl.drawElements(window.gl.TRIANGLES, this.buffers.index.numItems, window.gl.UNSIGNED_SHORT, 0);
             }
         }
     };
 
-    function drawCamera() {
-        var rotationMatrix = mat4.create();
-        var direction = vec3.fromValues(0.0, 0.0, -1.0);
-        var tangent = vec3.fromValues(1.0, 0.0, 0.0);
-        var forward = vec3.fromValues(0.0, 0.0, 1.0);
-        var up = vec3.fromValues(0.0, 1.0, 0.0);
-        mat4.rotateX(rotationMatrix, rotationMatrix, camera.pitchAngle);
-        vec3.transformMat4(direction, direction, rotationMatrix);
-        vec3.transformMat4(forward, forward, rotationMatrix);
-        vec3.transformMat4(tangent, tangent, rotationMatrix);
-        vec3.transformMat4(up, up, rotationMatrix);
-        mat4.identity(rotationMatrix);
-        mat4.rotateY(rotationMatrix, rotationMatrix, camera.yawAngle);
-        vec3.transformMat4(direction, direction, rotationMatrix);
-        vec3.transformMat4(forward, forward, rotationMatrix);
-        vec3.transformMat4(tangent, tangent, rotationMatrix);
-        vec3.transformMat4(up, up, rotationMatrix);
-        camera.tangent = tangent;
-        camera.forward = forward;
-        camera.up = up;
-        vec3.add(direction, direction, camera.position, up);
-        mat4.lookAt(viewMatrix, camera.position, direction, up);
+    function LightManager() {
+        this.directionalLights = [];
+        this.pointLights = [];
+        this.spotLights = [];
     }
 
-    function drawPole() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.vertexBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, cube.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+    LightManager.prototype = {
+        addPointLight: function(options) {
+            var index = this.pointLights.length;
+            this.pointLights.push(new PointLight(index, options));
+        },
+        draw: function(shaderManager) {
+            window.gl.uniform1i(shaderManager.getUniform("directionalLightsCount"), this.directionalLights.length);
+            window.gl.uniform1i(shaderManager.getUniform("pointLightsCount"), this.pointLights.length);
+            window.gl.uniform1i(shaderManager.getUniform("spotLightsCount"), this.spotLights.length);
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.normalBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, cube.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.uniform1i(shaderManager.uniforms.uUseColor, 1);
-        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(0.8, 0.8, 0.8));
-
-        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaderManager.uniforms.uUseTexture, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.textureBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, cube.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.indexBuffer);
-
-        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
-
-        var normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, modelMatrix);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-
-        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
-
-        gl.drawElements(gl.TRIANGLES, cube.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    }
-
-    function drawNet() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.uniform1i(shaderManager.uniforms.uUseColor, 1);
-        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
-
-        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaderManager.uniforms.uUseTexture, 0);
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
-
-        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
-
-        var normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, modelMatrix);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-
-        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
-
-        gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    }
-
-    function drawFloor() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.uniform1i(shaderManager.uniforms.uUseColor, 0);
-        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
-
-        gl.uniform1i(shaderManager.uniforms.uUseTexture, 1);
-        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 1);
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["floor_1"].get(filter));
-        gl.uniform1i(shaderManager.uniforms.uSampler, 0);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["signs"].get(filter));
-        gl.uniform1i(shaderManager.uniforms.uSecondSampler, 1);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
-
-        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
-
-        var normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, modelMatrix);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-
-        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
-
-        gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    }
-
-    function drawCeiling() {
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.uniform1i(shaderManager.uniforms.uUseColor, 0);
-        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
-
-        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaderManager.uniforms.uUseTexture, 1);
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["ceiling"].get(filter));
-        gl.uniform1i(shaderManager.uniforms.uSampler, 0);
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
-
-        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
-
-        var normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, modelMatrix);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-
-        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
-
-        gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
-    }
-
-    function drawPitch() {
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, modelMatrix, vec3.fromValues(-7.0, -2.0, 0.0));
-        mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(0.1, 2.0, 0.1));
-        drawPole();
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, modelMatrix, vec3.fromValues(7.0, -2.0, 0.0));
-        mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(0.1, 2.0, 0.1));
-        drawPole();
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, modelMatrix, vec3.fromValues(0.0, -1.25, 0.0));
-        mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(7.0, 1.0, 1.0));
-        drawNet();
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, modelMatrix, vec3.fromValues(0.0, -worldSize.y, 0.0));
-        mat4.rotateX(modelMatrix, modelMatrix, (Math.PI * 90) / 180);
-        mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(worldSize.x, worldSize.z, 1.0));
-        drawFloor();
-        mat4.identity(modelMatrix);
-        mat4.translate(modelMatrix, modelMatrix, vec3.fromValues(0.0, worldSize.y, 0.0));
-        mat4.rotateX(modelMatrix, modelMatrix, (Math.PI * -90) / 180);
-        mat4.scale(modelMatrix, modelMatrix, vec3.fromValues(worldSize.x, worldSize.z, 1.0));
-        drawCeiling();
-    }
-
-    var worldSize = {
-        x: 10.0,
-        y: 4.0,
-        z: 10.0
+            this.pointLights.forEach(function(pointLight) {
+                pointLight.draw(shaderManager);
+            });
+        }
     };
 
-    function drawLights() {
-        gl.uniform1i(shaderManager.uniforms.directionalLightsCount, 0);
-        gl.uniform1i(shaderManager.uniforms.pointLightsCount, 1);
-        gl.uniform1i(shaderManager.uniforms.spotLightsCount, 0);
-
-        gl.uniform3fv(shaderManager.uniforms["pointLights[0].position"], vec3.fromValues(-worldSize.x / 2, worldSize.y - 0.1, -worldSize.z / 2));
-        gl.uniform3fv(shaderManager.uniforms["pointLights[0].diffuseColor"], vec3.fromValues(0.1, 0.1, 0.1));
-        gl.uniform3fv(shaderManager.uniforms["pointLights[0].ambientColor"], vec3.fromValues(0.8, 0.8, 0.8));
-        gl.uniform1f(shaderManager.uniforms["pointLights[0].constantAttenuation"], 1);
-        gl.uniform1f(shaderManager.uniforms["pointLights[0].linearAttenuation"], 0);
-        gl.uniform1f(shaderManager.uniforms["pointLights[0].exponentAttenuation"], 0);
+    function PointLight(index, options) {
+        options = options || {};
+        this.index = index;
+        this.position = options.position || vec3.fromValues(0.0, 0.0, 1.0);
+        this.diffuseColor = options.diffuseColor || vec3.fromValues(0.1, 0.1, 0.1);
+        this.ambientColor = options.ambientColor || vec3.fromValues(0.8, 0.8, 0.8);
+        this.constantAttenuation = options.constantAttenuation || 1;
+        this.linearAttenuation = options.linearAttenuation || 0;
+        this.exponentAttenuation = options.exponentAttenuation || 0;
     }
 
-    function drawScene() {
-        gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-        mat4.perspective(projectionMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
-
-        drawLights();
-
-        var walls = new Drawable(Cube);
-        walls.addTexture(gl.TEXTURE0, textureManager.getTexture("floor_1"));
-        walls.addTexture(gl.TEXTURE1, textureManager.getTexture("signs"));
-        walls.draw(camera.getViewMatrix(), projectionMatrix);
-    }
-
-    window.requestAnimFrame = (function() {
-        return window.requestAnimationFrame ||
-            window.webkitRequestAnimationFrame ||
-            window.mozRequestAnimationFrame ||
-            window.oRequestAnimationFrame ||
-            window.msRequestAnimationFrame ||
-            function(/* function FrameRequestCallback */ callback, /* DOMElement Element */ element) {
-                window.setTimeout(callback, 1000/60);
-            };
-    })();
-
-    var camera = new Camera();
-    var keyboard = new Keyboard();
-    keyboard.bind(Keys.UpArrow, camera, camera.moveForward);
-    keyboard.bind(Keys.DownArrow, camera, camera.moveBackward);
-    keyboard.bind(Keys.LeftArrow, camera, camera.moveLeft);
-    keyboard.bind(Keys.RightArrow, camera, camera.moveRight);
-    keyboard.bind(Keys.PageUp, camera, camera.moveUp);
-    keyboard.bind(Keys.PageDown, camera, camera.moveDown);
-    keyboard.bind(Keys.S, camera, camera.rotatePitchMinus);
-    keyboard.bind(Keys.W, camera, camera.rotatePitchPlus);
-    keyboard.bind(Keys.A, camera, camera.rotateYawMinus);
-    keyboard.bind(Keys.D, camera, camera.rotateYawPlus);
-
-    function tick() {
-        requestAnimFrame(tick);
-        keyboard.handle();
-        drawScene();
-    }
+    PointLight.prototype = {
+        draw: function(shaderManager) {
+            window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].position"), this.position);
+            window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].diffuseColor"), this.diffuseColor);
+            window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].ambientColor"), this.ambientColor);
+            window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].constantAttenuation"), this.constantAttenuation);
+            window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].linearAttenuation"), this.linearAttenuation);
+            window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].exponentAttenuation"), this.exponentAttenuation);
+        }
+    };
 
     var canvas = document.getElementById("scene");
     canvas.width = $(document).innerWidth();
     canvas.height = $(document).innerHeight();
-    initGL(canvas);
-    shaderManager = new ShaderManager();
-    shaderManager.init();
-    textureManager = new TextureManager();
-    textureManager.init([
+
+    var scene = new Scene(canvas);
+    scene.loadTextures([
         ["crowd", "images/crowd.jpg"],
         ["ceiling", "images/ceiling.jpg"],
         ["floor_1", "images/floor_1.jpg"],
         ["signs", "images/signs.jpg"]
     ]);
 
+    scene.bindKey(Keys.UpArrow, scene.getCamera(), scene.getCamera().moveForward);
+    scene.bindKey(Keys.DownArrow, scene.getCamera(), scene.getCamera().moveBackward);
+    scene.bindKey(Keys.LeftArrow, scene.getCamera(), scene.getCamera().moveLeft);
+    scene.bindKey(Keys.RightArrow, scene.getCamera(), scene.getCamera().moveRight);
+    scene.bindKey(Keys.PageUp, scene.getCamera(), scene.getCamera().moveUp);
+    scene.bindKey(Keys.PageDown, scene.getCamera(), scene.getCamera().moveDown);
+    scene.bindKey(Keys.S, scene.getCamera(), scene.getCamera().rotatePitchMinus);
+    scene.bindKey(Keys.W, scene.getCamera(), scene.getCamera().rotatePitchPlus);
+    scene.bindKey(Keys.A, scene.getCamera(), scene.getCamera().rotateYawMinus);
+    scene.bindKey(Keys.D, scene.getCamera(), scene.getCamera().rotateYawPlus);
+    scene.bindKey(Keys.F, scene.getTextureManager(), scene.getTextureManager().changeFilter);
 
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.enable(gl.DEPTH_TEST);
+    var wall1 = new Drawable(Rectangle);
+    wall1.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall1.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    scene.addDrawable(wall1);
 
-    tick();
+    var wall2 = new Drawable(Rectangle);
+    wall2.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall2.transform(mat4.rotateY, -90 * Math.PI / 180);
+    wall2.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wall2.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    scene.addDrawable(wall2);
+
+    var wall3 = new Drawable(Rectangle);
+    wall3.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall3.transform(mat4.rotateY, 90 * Math.PI / 180);
+    wall3.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wall3.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    scene.addDrawable(wall3);
+
+    var wall4 = new Drawable(Rectangle);
+    wall4.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall4.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wall4.transform(mat4.translate, vec3.fromValues(0.0, 0.0, 1.0));
+    scene.addDrawable(wall4);
+
+    var floor = new Drawable(Rectangle);
+    floor.addTexture(window.gl.TEXTURE0, scene.getTexture("floor_1"));
+    floor.addTexture(window.gl.TEXTURE1, scene.getTexture("signs"));
+    floor.transform(mat4.translate, vec3.fromValues(0.0, -4.0, 0.0));
+    floor.transform(mat4.rotateX, 90 * Math.PI / 180);
+    floor.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
+    scene.addDrawable(floor);
+
+    var ceiling = new Drawable(Rectangle);
+    ceiling.addTexture(window.gl.TEXTURE0, scene.getTexture("ceiling"));
+    ceiling.transform(mat4.translate, vec3.fromValues(0.0, 4.0, 0.0));
+    ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
+    ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
+    scene.addDrawable(ceiling);
+
+    var pole1 = new Drawable(Cube);
+    pole1.setColor(vec3.fromValues(1.0, 1.0, 1.0));
+    pole1.transform(mat4.translate, vec3.fromValues(7.0, -2.0, 0.0));
+    pole1.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
+    scene.addDrawable(pole1);
+
+    var pole2 = new Drawable(Cube);
+    pole2.setColor(vec3.fromValues(1.0, 1.0, 1.0));
+    pole2.transform(mat4.translate, vec3.fromValues(-7.0, -2.0, 0.0));
+    pole2.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
+    scene.addDrawable(pole2);
+
+    var net = new Drawable(Rectangle);
+    net.setColor(vec3.fromValues(1.0, 1.0, 1.0));
+    net.transform(mat4.translate, vec3.fromValues(0.0, -1.25, 0.0));
+    net.transform(mat4.scale, vec3.fromValues(7.0, 1.0, 1.0));
+    scene.addDrawable(net);
+
+    scene.addPointLight();
+
+    scene.run();
 });
