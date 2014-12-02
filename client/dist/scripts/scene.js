@@ -14,13 +14,13 @@ $(document).ready(function() {
         }
     }
 
-    function Shaders() {
+    function ShaderManager() {
         this.program = {};
         this.attributes = {};
         this.uniforms = {};
     }
 
-    Shaders.prototype = {
+    ShaderManager.prototype = {
         getShaderSource: function(id) {
             var shaderScript = document.getElementById(id);
             if (!shaderScript) {
@@ -80,7 +80,12 @@ $(document).ready(function() {
         bindUniform: function(name) {
             this.uniforms[name] = gl.getUniformLocation(this.program, name);
         },
-
+        getAttribute: function(name) {
+            return this.attributes[name];
+        },
+        getUniform: function(name) {
+            return this.uniforms[name];
+        },
         bindLocations: function() {
             this.bindAttribute("aVertexPosition");
             this.bindAttribute("aVertexNormal");
@@ -109,24 +114,25 @@ $(document).ready(function() {
         }
     };
     
-    var shaders;
+    var shaderManager;
 
-    var scene;
+    var textureManager;
 
-    function Scene() {
+    function TextureManager() {
         this.textures = {};
     }
 
-    Scene.prototype = {
+    TextureManager.prototype = {
         addTexture: function(name, src) {
             this.textures[name] = new Texture(src);
         },
-
-        init: function() {
-            this.addTexture("crowd", "images/crowd.jpg");
-            this.addTexture("ceiling", "images/ceiling.jpg");
-            this.addTexture("floor_1", "images/floor_1.jpg");
-            this.addTexture("signs", "images/signs.jpg");
+        getTexture: function(name) {
+            return this.textures[name];
+        },
+        init: function(textures) {
+            textures.forEach(function(textureInfo) {
+                this.addTexture(textureInfo[0], textureInfo[1]);
+            }.bind(this));
         }
     };
 
@@ -313,330 +319,264 @@ $(document).ready(function() {
         }
     }
 
-    var cube = {
-        vertexBuffer: {},
-        normalBuffer: {},
-        textureBuffer: {},
-        indexBuffer: {}
+    function Cube() {
+        return {
+            vertex: {
+                array: [
+                    // Front face
+                    -1.0, -1.0, 1.0,
+                    1.0, -1.0, 1.0,
+                    1.0, 1.0, 1.0,
+                    -1.0, 1.0, 1.0,
+
+                    // Back face
+                    -1.0, -1.0, -1.0,
+                    -1.0, 1.0, -1.0,
+                    1.0, 1.0, -1.0,
+                    1.0, -1.0, -1.0,
+
+                    // Top face
+                    -1.0, 1.0, -1.0,
+                    -1.0, 1.0, 1.0,
+                    1.0, 1.0, 1.0,
+                    1.0, 1.0, -1.0,
+
+                    // Bottom face
+                    -1.0, -1.0, -1.0,
+                    1.0, -1.0, -1.0,
+                    1.0, -1.0, 1.0,
+                    -1.0, -1.0, 1.0,
+
+                    // Right face
+                    1.0, -1.0, -1.0,
+                    1.0, 1.0, -1.0,
+                    1.0, 1.0, 1.0,
+                    1.0, -1.0, 1.0,
+
+                    // Left face
+                    -1.0, -1.0, -1.0,
+                    -1.0, -1.0, 1.0,
+                    -1.0, 1.0, 1.0,
+                    -1.0, 1.0, -1.0
+                ],
+                itemSize: 3
+            },
+            normal: {
+                array: [
+                    // Front face
+                    0.0,  0.0,  -1.0,
+                    0.0,  0.0,  -1.0,
+                    0.0,  0.0,  -1.0,
+                    0.0,  0.0,  -1.0,
+
+                    // Back face
+                    0.0,  0.0, 1.0,
+                    0.0,  0.0, 1.0,
+                    0.0,  0.0, 1.0,
+                    0.0,  0.0, 1.0,
+
+                    // Top face
+                    0.0,  -1.0,  0.0,
+                    0.0,  -1.0,  0.0,
+                    0.0,  -1.0,  0.0,
+                    0.0,  -1.0,  0.0,
+
+                    // Bottom face
+                    0.0, 1.0,  0.0,
+                    0.0, 1.0,  0.0,
+                    0.0, 1.0,  0.0,
+                    0.0, 1.0,  0.0,
+
+                    // Right face
+                    -1.0,  0.0,  0.0,
+                    -1.0,  0.0,  0.0,
+                    -1.0,  0.0,  0.0,
+                    -1.0,  0.0,  0.0,
+
+                    // Left face
+                    1.0,  0.0,  0.0,
+                    1.0,  0.0,  0.0,
+                    1.0,  0.0,  0.0,
+                    1.0,  0.0,  0.0
+                ],
+                itemSize: 3
+            },
+            texture: {
+                array: [
+                    // Front face
+                    0.0, 0.0,
+                    1.0, 0.0,
+                    1.0, 1.0,
+                    0.0, 1.0,
+
+                    // Back face
+                    1.0, 0.0,
+                    1.0, 1.0,
+                    0.0, 1.0,
+                    0.0, 0.0,
+
+                    // Top face
+                    0.0, 1.0,
+                    0.0, 0.0,
+                    1.0, 0.0,
+                    1.0, 1.0,
+
+                    // Bottom face
+                    1.0, 1.0,
+                    0.0, 1.0,
+                    0.0, 0.0,
+                    1.0, 0.0,
+
+                    // Right face
+                    1.0, 0.0,
+                    1.0, 1.0,
+                    0.0, 1.0,
+                    0.0, 0.0,
+
+                    // Left face
+                    0.0, 0.0,
+                    1.0, 0.0,
+                    1.0, 1.0,
+                    0.0, 1.0
+                ],
+                itemSize: 2
+            },
+            index: {
+                array: [
+                    0, 1, 2,      0, 2, 3,    // Front face
+                    4, 5, 6,      4, 6, 7,    // Back face
+                    8, 9, 10,     8, 10, 11,  // Top face
+                    12, 13, 14,   12, 14, 15, // Bottom face
+                    16, 17, 18,   16, 18, 19, // Right face
+                    20, 21, 22,   20, 22, 23  // Left face
+                ],
+                numItems: 36
+            }
+        }
+    }
+
+    function Rectangle() {
+        return {
+            vertex: {
+                array: [
+                    -1.0, -1.0, 0.0,
+                    -1.0, 1.0, 0.0,
+                    1.0, 1.0, 0.0,
+                    1.0, -1.0, 0.0
+                ],
+                itemSize: 3
+            },
+            normal: {
+                array: [
+                    0.0, 0.0, 1.0,
+                    0.0, 0.0, 1.0,
+                    0.0, 0.0, 1.0,
+                    0.0, 0.0, 1.0
+                ],
+                itemSize: 3
+            },
+            texture: {
+                array: [
+                    0.0, 0.0,
+                    0.0, 1.0,
+                    1.0, 1.0,
+                    1.0, 0.0
+                ],
+                itemSize: 2
+            },
+            index: {
+                array: [
+                    0, 1, 2, 0, 2, 3
+                ],
+                numItems: 36
+            }
+        }
+    }
+
+    function Drawable(Primitive) {
+        this.primitive = Primitive();
+        this.buffers = {
+            vertex: {
+                buffer: gl.createBuffer(),
+                itemSize: this.primitive.vertex.itemSize
+            },
+            normal: {
+                buffer: gl.createBuffer(),
+                itemSize: this.primitive.normal.itemSize
+            },
+            texture: {
+                buffer: gl.createBuffer(),
+                itemSize: this.primitive.texture.itemSize
+            },
+            index: {
+                buffer: gl.createBuffer(),
+                numItems: this.primitive.index.numItems
+            }
+        };
+        this.textures = [];
+        this.modelMatrix = mat4.create();
+        mat4.identity(this.modelMatrix);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.vertex.array), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.normal.array), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texture.buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.primitive.texture.array), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(this.primitive.index.array), gl.STATIC_DRAW);
+    }
+
+    Drawable.prototype = {
+        addTexture: function(activeId, texture) {
+            this.textures.push({
+                activeId: activeId,
+                texture: texture
+            })
+        },
+        getNormalMatrix: function() {
+            var normalMatrix = mat3.create();
+            mat3.fromMat4(normalMatrix, this.modelMatrix);
+            mat3.invert(normalMatrix, normalMatrix);
+            mat3.transpose(normalMatrix, normalMatrix);
+            return normalMatrix;
+        },
+        draw: function(viewMatrix, projectionMatrix, color) {
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
+            gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, this.buffers.vertex.itemSize, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal.buffer);
+            gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, this.buffers.normal.itemSize, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texture.buffer);
+            gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, this.buffers.texture.itemSize, gl.FLOAT, false, 0, 0);
+
+            if (color) {
+                gl.uniform3fv(shaderManager.uniforms.uColor, color);
+                gl.uniform1i(shaderManager.uniforms.texturesCount, 0);
+            } else if (this.textures.length > 0) {
+                var i = 0;
+                this.textures.forEach(function (textureInfo) {
+                    gl.uniform1i(shaderManager.uniforms.texturesCount, ++i);
+                    gl.activeTexture(textureInfo.activeId);
+                    gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture.get(filter));
+                    gl.uniform1i(shaderManager.uniforms["textureSamplers[" + i + "]"], i++);
+                });
+            }
+
+            var normalMatrix = this.getNormalMatrix();
+            gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, this.modelMatrix);
+            gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
+            gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
+            gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
+
+            if (this.buffers.index) {
+                gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
+                gl.drawElements(gl.TRIANGLES, this.buffers.index.numItems, gl.UNSIGNED_SHORT, 0);
+            }
+        }
     };
-
-    function initCubeBuffers() {
-        cube.vertexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.vertexBuffer);
-        var vertices = [
-            // Front face
-            -1.0, -1.0,  1.0,
-            1.0, -1.0,  1.0,
-            1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-
-            // Back face
-            -1.0, -1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            1.0,  1.0, -1.0,
-            1.0, -1.0, -1.0,
-
-            // Top face
-            -1.0,  1.0, -1.0,
-            -1.0,  1.0,  1.0,
-            1.0,  1.0,  1.0,
-            1.0,  1.0, -1.0,
-
-            // Bottom face
-            -1.0, -1.0, -1.0,
-            1.0, -1.0, -1.0,
-            1.0, -1.0,  1.0,
-            -1.0, -1.0,  1.0,
-
-            // Right face
-            1.0, -1.0, -1.0,
-            1.0,  1.0, -1.0,
-            1.0,  1.0,  1.0,
-            1.0, -1.0,  1.0,
-
-            // Left face
-            -1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0,  1.0, -1.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-        cube.vertexBuffer.itemSize = 3;
-        cube.vertexBuffer.numItems = 24;
-
-        cube.normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.normalBuffer);
-        var vertexNormals = [
-            // Front face
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-
-            // Back face
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-
-            // Top face
-            0.0,  -1.0,  0.0,
-            0.0,  -1.0,  0.0,
-            0.0,  -1.0,  0.0,
-            0.0,  -1.0,  0.0,
-
-            // Bottom face
-            0.0, 1.0,  0.0,
-            0.0, 1.0,  0.0,
-            0.0, 1.0,  0.0,
-            0.0, 1.0,  0.0,
-
-            // Right face
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-
-            // Left face
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
-        cube.normalBuffer.itemSize = 3;
-        cube.normalBuffer.numItems = 24;
-
-        cube.textureBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, cube.textureBuffer);
-        var textureCoords = [
-            // Front face
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-
-            // Back face
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-            0.0, 0.0,
-
-            // Top face
-            0.0, 1.0,
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-
-            // Bottom face
-            1.0, 1.0,
-            0.0, 1.0,
-            0.0, 0.0,
-            1.0, 0.0,
-
-            // Right face
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-            0.0, 0.0,
-
-            // Left face
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
-        cube.textureBuffer.itemSize = 2;
-        cube.textureBuffer.numItems = 24;
-
-        cube.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.indexBuffer);
-        var cubeVertexIndices = [
-            0, 1, 2,      0, 2, 3,    // Front face
-            4, 5, 6,      4, 6, 7,    // Back face
-            8, 9, 10,     8, 10, 11,  // Top face
-            12, 13, 14,   12, 14, 15, // Bottom face
-            16, 17, 18,   16, 18, 19, // Right face
-            20, 21, 22,   20, 22, 23  // Left face
-        ];
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
-        cube.indexBuffer.itemSize = 1;
-        cube.indexBuffer.numItems = 36;
-    }
-
-    var walls = {
-        vertexBuffer: {},
-        normalBuffer: {},
-        textureBuffer: {},
-        indexBuffer: {}
-    };
-
-    function initWallsBuffers() {
-        walls.vertexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, walls.vertexBuffer);
-        var vertices = [
-            // Front face
-            -1.0, -1.0,  1.0,
-            1.0, -1.0,  1.0,
-            1.0,  1.0,  1.0,
-            -1.0,  1.0,  1.0,
-
-            // Back face
-            -1.0, -1.0, -1.0,
-            -1.0,  1.0, -1.0,
-            1.0,  1.0, -1.0,
-            1.0, -1.0, -1.0,
-
-            // Right face
-            1.0, -1.0, -1.0,
-            1.0,  1.0, -1.0,
-            1.0,  1.0,  1.0,
-            1.0, -1.0,  1.0,
-
-            // Left face
-            -1.0, -1.0, -1.0,
-            -1.0, -1.0,  1.0,
-            -1.0,  1.0,  1.0,
-            -1.0,  1.0, -1.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-        walls.vertexBuffer.itemSize = 3;
-
-        walls.normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, walls.normalBuffer);
-        var vertexNormals = [
-            // Front face
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-            0.0,  0.0,  -1.0,
-
-            // Back face
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-            0.0,  0.0, 1.0,
-
-            // Right face
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-            -1.0,  0.0,  0.0,
-
-            // Left face
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0,
-            1.0,  0.0,  0.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
-        walls.normalBuffer.itemSize = 3;
-
-        walls.textureBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, walls.textureBuffer);
-        var textureCoords = [
-            // Front face
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-
-            // Back face
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-            0.0, 0.0,
-
-            // Right face
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0,
-            0.0, 0.0,
-
-            // Left face
-            0.0, 0.0,
-            1.0, 0.0,
-            1.0, 1.0,
-            0.0, 1.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
-        walls.textureBuffer.itemSize = 2;
-
-        walls.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, walls.indexBuffer);
-        var cubeVertexIndices = [
-            0, 1, 2,      0, 2, 3,    // Front face
-            4, 5, 6,      4, 6, 7,    // Back face
-            8, 9, 10,     8, 10, 11,
-            12, 13, 14,   12, 14, 15
-
-        ];
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
-        walls.indexBuffer.numItems = 24;
-    }
-
-    var rectangle = {
-        vertexBuffer: {},
-        normalBuffer: {},
-        textureBuffer: {},
-        indexBuffer: {}
-    };
-
-    function initRectangleBuffers() {
-
-        rectangle.vertexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        var vertices = [
-            -1.0, -1.0, 0.0,
-            -1.0, 1.0, 0.0,
-            1.0, 1.0, 0.0,
-            1.0, -1.0, 0.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
-        rectangle.vertexBuffer.itemSize = 3;
-        rectangle.vertexBuffer.numItems = 4;
-
-        rectangle.normalBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        var vertexNormals = [
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0,
-            0.0, 0.0, 1.0
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
-        rectangle.normalBuffer.itemSize = 3;
-        rectangle.normalBuffer.numItems = 4;
-
-        rectangle.textureBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        var textureCoords = [
-            0.0, 0.0,
-            0.0, 1.0,
-            1.0, 1.0,
-            1.0, 0.0
-
-        ];
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoords), gl.STATIC_DRAW);
-        rectangle.textureBuffer.itemSize = 2;
-        rectangle.textureBuffer.numItems = 4;
-
-        rectangle.indexBuffer = gl.createBuffer();
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
-        var indices = [
-            0, 1, 2, 0, 2, 3
-        ];
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
-        rectangle.indexBuffer.itemSize = 1;
-        rectangle.indexBuffer.numItems = 6;
-    }
-
-    function initBuffers() {
-        initCubeBuffers();
-        initRectangleBuffers();
-        initWallsBuffers();
-    }
 
     function drawCamera() {
         var rotationMatrix = mat4.create();
@@ -662,192 +602,137 @@ $(document).ready(function() {
         mat4.lookAt(viewMatrix, camera.position, direction, up);
     }
 
-    function Drawable() {
-        
-    }
-
-    function draw(shaders, matrices, options) {
-        options.buffers = options.buffers || {};
-
-        if(options.buffers.vertex) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, options.buffers.vertex.buffer);
-            gl.vertexAttribPointer(shaders.attributes.aVertexPosition, options.buffers.vertex.itemSize, gl.FLOAT, false, 0, 0);
-        }
-
-        if(options.buffers.normal) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, options.buffers.normal.buffer);
-            gl.vertexAttribPointer(shaders.attributes.aVertexNormal, options.buffers.normal.itemSize, gl.FLOAT, false, 0, 0);
-        }
-
-        if(options.buffers.texture) {
-            gl.bindBuffer(gl.ARRAY_BUFFER, options.buffers.texture.buffer);
-            gl.vertexAttribPointer(shaders.attributes.aTextureCoord, options.buffers.texture.itemSize, gl.FLOAT, false, 0, 0);
-        }
-
-        if(options.color) {
-            gl.uniform1i(shaders.uniforms.uUseColor, 1);
-            gl.uniform3fv(shaders.uniforms.uColor, options.color);
-        } else {
-            gl.uniform1i(shaders.uniforms.uUseColor, 0);
-        }
-
-        if(options.textures) {
-            var i = 0;
-            options.textures.forEach(function(textureInfo) {
-                gl.uniform1i(shaders.uniforms.texturesCount, ++i);
-                gl.activeTexture(textureInfo.activeId);
-                gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture.get(filter));
-                gl.uniform1i(shaders.uniforms["textureSamplers[" + i + "]"], i++);
-            });
-        }
-
-        var normalMatrix = mat3.create();
-        mat3.fromMat4(normalMatrix, matrices.model);
-        mat3.invert(normalMatrix, normalMatrix);
-        mat3.transpose(normalMatrix, normalMatrix);
-
-        gl.uniformMatrix4fv(shaders.uniforms.uModelMatrix, false, matrices.model);
-        gl.uniformMatrix4fv(shaders.uniforms.uViewMatrix, false, matrices.view);
-        gl.uniformMatrix4fv(shaders.uniforms.uProjectionMatrix, false, matrices.projection);
-        gl.uniformMatrix3fv(shaders.uniforms.uNormalMatrix, false, normalMatrix);
-
-        if(options.buffers.index) {
-            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, options.buffers.index.buffer);
-            gl.drawElements(gl.TRIANGLES, options.buffers.index.numItems, gl.UNSIGNED_SHORT, 0);
-        }
-    }
-
     function drawPole() {
         gl.bindBuffer(gl.ARRAY_BUFFER, cube.vertexBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexPosition, cube.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, cube.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, cube.normalBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexNormal, cube.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, cube.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-        gl.uniform1i(shaders.uniforms.uUseColor, 1);
-        gl.uniform3fv(shaders.uniforms.uColor, vec3.fromValues(0.8, 0.8, 0.8));
+        gl.uniform1i(shaderManager.uniforms.uUseColor, 1);
+        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(0.8, 0.8, 0.8));
 
-        gl.uniform1i(shaders.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaders.uniforms.uUseTexture, 0);
+        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
+        gl.uniform1i(shaderManager.uniforms.uUseTexture, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, cube.textureBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aTextureCoord, cube.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, cube.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.indexBuffer);
 
-        gl.uniformMatrix4fv(shaders.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uProjectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
 
         var normalMatrix = mat3.create();
         mat3.fromMat4(normalMatrix, modelMatrix);
         mat3.invert(normalMatrix, normalMatrix);
         mat3.transpose(normalMatrix, normalMatrix);
 
-        gl.uniformMatrix3fv(shaders.uniforms.uNormalMatrix, false, normalMatrix);
+        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
 
         gl.drawElements(gl.TRIANGLES, cube.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
     }
 
     function drawNet() {
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-        gl.uniform1i(shaders.uniforms.uUseColor, 1);
-        gl.uniform3fv(shaders.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
+        gl.uniform1i(shaderManager.uniforms.uUseColor, 1);
+        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
 
-        gl.uniform1i(shaders.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaders.uniforms.uUseTexture, 0);
+        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
+        gl.uniform1i(shaderManager.uniforms.uUseTexture, 0);
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
 
-        gl.uniformMatrix4fv(shaders.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uProjectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
 
         var normalMatrix = mat3.create();
         mat3.fromMat4(normalMatrix, modelMatrix);
         mat3.invert(normalMatrix, normalMatrix);
         mat3.transpose(normalMatrix, normalMatrix);
 
-        gl.uniformMatrix3fv(shaders.uniforms.uNormalMatrix, false, normalMatrix);
+        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
 
         gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
     }
 
     function drawFloor() {
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-        gl.uniform1i(shaders.uniforms.uUseColor, 0);
-        gl.uniform3fv(shaders.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
+        gl.uniform1i(shaderManager.uniforms.uUseColor, 0);
+        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
 
-        gl.uniform1i(shaders.uniforms.uUseTexture, 1);
-        gl.uniform1i(shaders.uniforms.uUseSecondTexture, 1);
+        gl.uniform1i(shaderManager.uniforms.uUseTexture, 1);
+        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 1);
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, scene.textures["floor_1"].get(filter));
-        gl.uniform1i(shaders.uniforms.uSampler, 0);
+        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["floor_1"].get(filter));
+        gl.uniform1i(shaderManager.uniforms.uSampler, 0);
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, scene.textures["signs"].get(filter));
-        gl.uniform1i(shaders.uniforms.uSecondSampler, 1);
+        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["signs"].get(filter));
+        gl.uniform1i(shaderManager.uniforms.uSecondSampler, 1);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
 
-        gl.uniformMatrix4fv(shaders.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uProjectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
 
         var normalMatrix = mat3.create();
         mat3.fromMat4(normalMatrix, modelMatrix);
         mat3.invert(normalMatrix, normalMatrix);
         mat3.transpose(normalMatrix, normalMatrix);
 
-        gl.uniformMatrix3fv(shaders.uniforms.uNormalMatrix, false, normalMatrix);
+        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
 
         gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
     }
 
     function drawCeiling() {
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.vertexBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, rectangle.vertexBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.normalBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, rectangle.normalBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
-        gl.uniform1i(shaders.uniforms.uUseColor, 0);
-        gl.uniform3fv(shaders.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
+        gl.uniform1i(shaderManager.uniforms.uUseColor, 0);
+        gl.uniform3fv(shaderManager.uniforms.uColor, vec3.fromValues(1.0, 1.0, 1.0));
 
-        gl.uniform1i(shaders.uniforms.uUseSecondTexture, 0);
-        gl.uniform1i(shaders.uniforms.uUseTexture, 1);
+        gl.uniform1i(shaderManager.uniforms.uUseSecondTexture, 0);
+        gl.uniform1i(shaderManager.uniforms.uUseTexture, 1);
         gl.bindBuffer(gl.ARRAY_BUFFER, rectangle.textureBuffer);
-        gl.vertexAttribPointer(shaders.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
+        gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, rectangle.textureBuffer.itemSize, gl.FLOAT, false, 0, 0);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, scene.textures["ceiling"].get(filter));
-        gl.uniform1i(shaders.uniforms.uSampler, 0);
+        gl.bindTexture(gl.TEXTURE_2D, textureManager.textures["ceiling"].get(filter));
+        gl.uniform1i(shaderManager.uniforms.uSampler, 0);
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, rectangle.indexBuffer);
 
-        gl.uniformMatrix4fv(shaders.uniforms.uModelMatrix, false, modelMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uViewMatrix, false, viewMatrix);
-        gl.uniformMatrix4fv(shaders.uniforms.uProjectionMatrix, false, projectionMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, modelMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
+        gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
 
         var normalMatrix = mat3.create();
         mat3.fromMat4(normalMatrix, modelMatrix);
         mat3.invert(normalMatrix, normalMatrix);
         mat3.transpose(normalMatrix, normalMatrix);
 
-        gl.uniformMatrix3fv(shaders.uniforms.uNormalMatrix, false, normalMatrix);
+        gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
 
         gl.drawElements(gl.TRIANGLES, rectangle.indexBuffer.numItems, gl.UNSIGNED_SHORT, 0);
     }
@@ -878,16 +763,16 @@ $(document).ready(function() {
     }
 
     function drawLights() {
-        gl.uniform1i(shaders.uniforms.directionalLightsCount, 0);
-        gl.uniform1i(shaders.uniforms.pointLightsCount, 1);
-        gl.uniform1i(shaders.uniforms.spotLightsCount, 0);
+        gl.uniform1i(shaderManager.uniforms.directionalLightsCount, 0);
+        gl.uniform1i(shaderManager.uniforms.pointLightsCount, 1);
+        gl.uniform1i(shaderManager.uniforms.spotLightsCount, 0);
 
-        gl.uniform3fv(shaders.uniforms["pointLights[0].position"], vec3.fromValues(-worldSize.x / 2, worldSize.y - 0.1, -worldSize.z / 2));
-        gl.uniform3fv(shaders.uniforms["pointLights[0].diffuseColor"], vec3.fromValues(0.1, 0.1, 0.1));
-        gl.uniform3fv(shaders.uniforms["pointLights[0].ambientColor"], vec3.fromValues(0.8, 0.8, 0.8));
-        gl.uniform1f(shaders.uniforms["pointLights[0].constantAttenuation"], 1);
-        gl.uniform1f(shaders.uniforms["pointLights[0].linearAttenuation"], 0);
-        gl.uniform1f(shaders.uniforms["pointLights[0].exponentAttenuation"], 0);
+        gl.uniform3fv(shaderManager.uniforms["pointLights[0].position"], vec3.fromValues(-worldSize.x / 2, worldSize.y - 0.1, -worldSize.z / 2));
+        gl.uniform3fv(shaderManager.uniforms["pointLights[0].diffuseColor"], vec3.fromValues(0.1, 0.1, 0.1));
+        gl.uniform3fv(shaderManager.uniforms["pointLights[0].ambientColor"], vec3.fromValues(0.8, 0.8, 0.8));
+        gl.uniform1f(shaderManager.uniforms["pointLights[0].constantAttenuation"], 1);
+        gl.uniform1f(shaderManager.uniforms["pointLights[0].linearAttenuation"], 0);
+        gl.uniform1f(shaderManager.uniforms["pointLights[0].exponentAttenuation"], 0);
     }
 
     function drawScene() {
@@ -898,42 +783,10 @@ $(document).ready(function() {
 
         drawCamera();
         drawLights();
-        //drawWalls();
-        //drawPitch();
-        var matrices = {
-            model: modelMatrix,
-            view: viewMatrix,
-            projection: projectionMatrix
-        };
 
-        var options = {
-            buffers: {
-                vertex: {
-                    buffer: walls.vertexBuffer,
-                    itemSize: walls.vertexBuffer.itemSize
-                },
-                normal: {
-                    buffer: walls.normalBuffer,
-                    itemSize: walls.normalBuffer.itemSize
-                },
-                texture: {
-                    buffer: walls.textureBuffer,
-                    itemSize: walls.textureBuffer.itemSize
-                },
-                index: {
-                    buffer: walls.indexBuffer,
-                    numItems: walls.indexBuffer.numItems
-                }
-            },
-            textures: [
-                {
-                    activeId: gl.TEXTURE0,
-                    texture: scene.textures["crowd"]
-                }
-            ]
-        };
-
-        draw(shaders, matrices, options);
+        var walls = new Drawable(Cube);
+        walls.addTexture(gl.TEXTURE0, textureManager.getTexture("crowd"));
+        walls.draw(viewMatrix, projectionMatrix);
     }
 
     window.requestAnimFrame = (function() {
@@ -957,11 +810,15 @@ $(document).ready(function() {
     canvas.width = $(document).innerWidth();
     canvas.height = $(document).innerHeight();
     initGL(canvas);
-    shaders = new Shaders();
-    shaders.init();
-    initBuffers();
-    scene = new Scene();
-    scene.init();
+    shaderManager = new ShaderManager();
+    shaderManager.init();
+    textureManager = new TextureManager();
+    textureManager.init([
+        ["crowd", "images/crowd.jpg"],
+        ["ceiling", "images/ceiling.jpg"],
+        ["floor_1", "images/floor_1.jpg"],
+        ["signs", "images/signs.jpg"]
+    ]);
 
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
