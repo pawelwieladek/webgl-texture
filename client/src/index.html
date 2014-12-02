@@ -14,6 +14,7 @@
 precision mediump float;
 
 const int MAX_LIGHTS = 10;
+const int MAX_TEXTURES = 10;
 
 varying vec4 vPosition;
 varying vec3 vNormal;
@@ -47,16 +48,13 @@ struct SpotLight {
 uniform int directionalLightsCount;
 uniform int pointLightsCount;
 uniform int spotLightsCount;
+uniform int texturesCount;
 
 uniform DirectionalLight directionalLights[MAX_LIGHTS];
 uniform PointLight pointLights[MAX_LIGHTS];
 uniform SpotLight spotLights[MAX_LIGHTS];
 
-uniform bool uUseTexture;
-uniform sampler2D uSampler;
-uniform bool uUseSecondTexture;
-uniform sampler2D uSecondSampler;
-uniform bool uUseColor;
+uniform sampler2D textureSamplers[MAX_TEXTURES];
 uniform vec3 uColor;
 
 vec4 getDirectionalLightColor(const DirectionalLight directionalLight, vec3 normal) {
@@ -87,18 +85,18 @@ vec4 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
     return vec4(diffuse * spotLight.diffuseColor * spotEffect * attenuation, 1.0);
 }
 
-vec4 getColor(bool useColor, vec3 color, bool useTexture, sampler2D uSampler, bool useSecondTexture, sampler2D uSecondSampler, vec2 vTextureCoord) {
-    if (useColor) {
-        return vec4(color, 1.0);
-    }
-    if (useTexture) {
-        vec4 color = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
-        if (useSecondTexture) {
-            return color + texture2D(uSecondSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+vec4 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
+    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+
+    if (texturesCount > 0) {
+        for(int i = 0; i < MAX_TEXTURES; i++) {
+            if(i < texturesCount)
+                color += texture2D(textureSamplers[i], vec2(vTextureCoord.s, vTextureCoord.t));
         }
         return color;
+    } else {
+        return color + vec4(uColor, 1.0);
     }
-    return vec4(0.0, 0.0, 0.0, 1.0);
 }
 
 void main(void) {
@@ -116,7 +114,7 @@ void main(void) {
             color += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
     }
 
-    gl_FragColor = color * getColor(uUseColor, uColor, uUseTexture, uSampler, uUseSecondTexture, uSecondSampler, vTextureCoord);
+    gl_FragColor = color * getColor(texturesCount, textureSamplers, uColor);
 }
 </script>
 
