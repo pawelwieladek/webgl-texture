@@ -15,14 +15,38 @@ gulp.task('libs', ['clean'], function() {
 });
 
 var scripts = function() {
-    gulp.src('./client/src/**')
+    gulp.src('./client/src/scripts/**')
+        .pipe(gulp.dest('./client/dist/scripts'));
+};
+
+var styles = function() {
+    gulp.src('./client/src/styles/**')
+        .pipe(gulp.dest('./client/dist/styles'));
+};
+
+var images = function() {
+    gulp.src('./client/src/images/**')
+        .pipe(gulp.dest('./client/dist/images'));
+};
+
+var html = function() {
+    gulp.src('./client/src/*.html')
         .pipe(gulp.dest('./client/dist'));
 };
 
 gulp.task('scripts', ['clean'], scripts);
 gulp.task('scripts-dirty', scripts);
 
-gulp.task('build', ['scripts', 'libs']);
+gulp.task('styles', ['clean'], styles);
+gulp.task('styles-dirty', styles);
+
+gulp.task('images', ['clean'], images);
+gulp.task('images-dirty', images);
+
+gulp.task('html', ['clean'], html);
+gulp.task('html-dirty', html);
+
+gulp.task('build', ['scripts', 'styles', 'images', 'html', 'libs']);
 
 gulp.task('serve', ['build'], function () {
     // Start the server at the beginning of the task
@@ -31,7 +55,10 @@ gulp.task('serve', ['build'], function () {
     });
 
     // Restart the server when file changes
-    gulp.watch(['client/src/**/*.html'], ['scripts-dirty']);
+    gulp.watch(['client/src/*.html'], ['html-dirty']);
+    gulp.watch(['client/src/scripts/**/*.js'], ['scripts-dirty']);
+    gulp.watch(['client/src/styles/**/*.css'], ['styles-dirty']);
+    gulp.watch(['client/src/images/**'], ['images-dirty']);
     gulp.watch(['server/app.js'], server.run);
 });
 
