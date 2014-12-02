@@ -119,6 +119,7 @@ $(document).ready(function() {
     var textureManager;
 
     function TextureManager() {
+        this.filter = 0;
         this.textures = {};
     }
 
@@ -127,7 +128,7 @@ $(document).ready(function() {
             this.textures[name] = new Texture(src);
         },
         getTexture: function(name) {
-            return this.textures[name];
+            return this.textures[name].getVersion(this.filter);
         },
         init: function(textures) {
             textures.forEach(function(textureInfo) {
@@ -177,7 +178,7 @@ $(document).ready(function() {
     }
 
     Texture.prototype = {
-        get: function(filter) {
+        getVersion: function(filter) {
             return this.versions[filter];
         }
     };
@@ -186,35 +187,90 @@ $(document).ready(function() {
     var viewMatrix = mat4.create();
     var projectionMatrix = mat4.create();
 
-    var camera = {
-        position: vec3.fromValues(0.0, 0.0, 10.0),
-        tangent: vec3.fromValues(1.0, 0.0, 0.0),
-        forward: vec3.fromValues(0.0, 0.0, 1.0),
-        up: vec3.fromValues(0.0, 1.0, 0.0),
-        translateStep: 0.1,
-        rotateStep: Math.PI / 180,
-        pitchAngle: 0.0,
-        yawAngle: 0.0
-    };
+    function Camera() {
+        this.viewMatrix = mat4.create();
+        this.position = vec3.fromValues(0.0, 0.0, 0.0);
+        this.tangent = vec3.fromValues(1.0, 0.0, 0.0);
+        this.forward = vec3.fromValues(0.0, 0.0, 1.0);
+        this.up = vec3.fromValues(0.0, 1.0, 0.0);
+        this.translateStep = 0.05;
+        this.rotateStep = Math.PI / 180;
+        this.pitchAngle = 0.0;
+        this.yawAngle = 0.0;
+    }
 
-    var filter = 0;
+    Camera.prototype = {
+        setPosition: function(position) {
+            this.position = position;
+        },
+        getViewMatrix: function() {
+            var rotationMatrix = mat4.create();
+            var direction = vec3.fromValues(0.0, 0.0, -1.0);
+            var tangent = vec3.fromValues(1.0, 0.0, 0.0);
+            var forward = vec3.fromValues(0.0, 0.0, 1.0);
+            var up = vec3.fromValues(0.0, 1.0, 0.0);
+            mat4.rotateX(rotationMatrix, rotationMatrix, this.pitchAngle);
+            vec3.transformMat4(direction, direction, rotationMatrix);
+            vec3.transformMat4(forward, forward, rotationMatrix);
+            vec3.transformMat4(tangent, tangent, rotationMatrix);
+            vec3.transformMat4(up, up, rotationMatrix);
+            mat4.identity(rotationMatrix);
+            mat4.rotateY(rotationMatrix, rotationMatrix, this.yawAngle);
+            vec3.transformMat4(direction, direction, rotationMatrix);
+            vec3.transformMat4(forward, forward, rotationMatrix);
+            vec3.transformMat4(tangent, tangent, rotationMatrix);
+            vec3.transformMat4(up, up, rotationMatrix);
+            this.tangent = tangent;
+            this.forward = forward;
+            this.up = up;
+            vec3.add(direction, direction, this.position, up);
 
-    var currentlyPressedKeys = {};
-
-    function handleKeyDown(event) {
-        currentlyPressedKeys[event.keyCode] = true;
-
-        if (String.fromCharCode(event.keyCode) == "F") {
-            filter += 1;
-            if (filter == 3) {
-                filter = 0;
-            }
+            mat4.lookAt(this.viewMatrix, this.position, direction, up);
+            return this.viewMatrix;
+        },
+        moveForward: function() {
+            var forward = vec3.create();
+            vec3.scale(forward, this.forward, -this.translateStep);
+            vec3.add(this.position, this.position, forward);
+        },
+        moveBackward: function() {
+            var forward = vec3.create();
+            vec3.scale(forward, this.forward, this.translateStep);
+            vec3.add(this.position, this.position, forward);
+        },
+        moveLeft: function() {
+            var tangent = vec3.create();
+            vec3.scale(tangent, this.tangent, -this.translateStep);
+            vec3.add(this.position, this.position, tangent);
+        },
+        moveRight: function() {
+            var tangent = vec3.create();
+            vec3.scale(tangent, this.tangent, this.translateStep);
+            vec3.add(this.position, this.position, tangent);
+        },
+        moveUp: function() {
+            var up = vec3.create();
+            vec3.scale(up, this.up, this.translateStep);
+            vec3.add(this.position, this.position, up);
+        },
+        moveDown: function() {
+            var up = vec3.create();
+            vec3.scale(up, this.up, -this.translateStep);
+            vec3.add(this.position, this.position, up);
+        },
+        rotatePitchMinus: function() {
+            this.pitchAngle -= this.rotateStep;
+        },
+        rotatePitchPlus: function() {
+            this.pitchAngle += this.rotateStep;
+        },
+        rotateYawMinus: function() {
+            this.yawAngle += this.rotateStep;
+        },
+        rotateYawPlus: function() {
+            this.yawAngle -= this.rotateStep;
         }
-    }
-
-    function handleKeyUp(event) {
-        currentlyPressedKeys[event.keyCode] = false;
-    }
+    };
 
     var Keys = {
         LeftArrow: 37,
@@ -251,73 +307,35 @@ $(document).ready(function() {
         Z: 90
     };
 
-    function clamp(number, min, max) {
-        return Math.max(min, Math.min(number, max));
+    function Keyboard() {
+        var pressedKeys = {};
+        this.actions = {};
+        function handleKeyDown(event) {
+            pressedKeys[event.keyCode] = true;
+        }
+        function handleKeyUp(event) {
+            pressedKeys[event.keyCode] = false;
+        }
+        document.onkeydown = handleKeyDown;
+        document.onkeyup = handleKeyUp;
+        this.pressedKeys = pressedKeys;
     }
 
-    function vec3clamp(position, lowerLimit, upperLimit) {
-        position[0] = clamp(position[0], lowerLimit[0], upperLimit[0]);
-        position[1] = clamp(position[1], lowerLimit[1], upperLimit[1]);
-        position[2] = clamp(position[2], lowerLimit[2], upperLimit[2]);
-        return position;
-    }
-
-    var worldSize = {
-        x: 20.0,
-        y: 4.0,
-        z: 20.0
+    Keyboard.prototype = {
+        bind: function(keyCode, handler, action) {
+            this.actions[keyCode] = {
+                handler: handler,
+                action: action
+            };
+        },
+        handle: function() {
+            for(var key in this.actions) {
+                if (this.actions.hasOwnProperty(key) && this.pressedKeys[key]) {
+                    this.actions[key].action.call(this.actions[key].handler);
+                }
+            }
+        }
     };
-
-    function handleKeys() {
-        if (currentlyPressedKeys[Keys.PageUp]) {
-            var upKeyUp = vec3.create();
-            vec3.scale(upKeyUp, camera.up, camera.translateStep);
-            vec3.add(camera.position, camera.position, upKeyUp);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if (currentlyPressedKeys[Keys.PageDown]) {
-            var upKeyDown = vec3.create();
-            vec3.scale(upKeyDown, camera.up, -camera.translateStep);
-            vec3.add(camera.position, camera.position, upKeyDown);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if (currentlyPressedKeys[Keys.LeftArrow]) {
-            var tangentLeft = vec3.create();
-            vec3.scale(tangentLeft, camera.tangent, -camera.translateStep);
-            vec3.add(camera.position, camera.position, tangentLeft);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if (currentlyPressedKeys[Keys.RightArrow]) {
-            var tangentKeyRight = vec3.create();
-            vec3.scale(tangentKeyRight, camera.tangent, camera.translateStep);
-            vec3.add(camera.position, camera.position, tangentKeyRight);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if (currentlyPressedKeys[Keys.UpArrow]) {
-            var forwardKeyUp = vec3.create();
-            vec3.scale(forwardKeyUp, camera.forward, -camera.translateStep);
-            vec3.add(camera.position, camera.position, forwardKeyUp);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if (currentlyPressedKeys[Keys.DownArrow]) {
-            var forwardKeyDown = vec3.create();
-            vec3.scale(forwardKeyDown, camera.forward, camera.translateStep);
-            vec3.add(camera.position, camera.position, forwardKeyDown);
-            camera.position = vec3clamp(camera.position, vec3.fromValues(-worldSize.x, -worldSize.y, -worldSize.z), vec3.fromValues(worldSize.x, worldSize.y, worldSize.z));
-        }
-        if(currentlyPressedKeys[Keys.S]) {
-            camera.pitchAngle -= camera.rotateStep;
-        }
-        if(currentlyPressedKeys[Keys.W]) {
-            camera.pitchAngle += camera.rotateStep;
-        }
-        if(currentlyPressedKeys[Keys.D]) {
-            camera.yawAngle -= camera.rotateStep;
-        }
-        if(currentlyPressedKeys[Keys.A]) {
-            camera.yawAngle += camera.rotateStep;
-        }
-    }
 
     function Cube() {
         return {
@@ -544,33 +562,33 @@ $(document).ready(function() {
         draw: function(viewMatrix, projectionMatrix, color) {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
-            gl.vertexAttribPointer(shaderManager.attributes.aVertexPosition, this.buffers.vertex.itemSize, gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(shaderManager.getAttribute("aVertexPosition"), this.buffers.vertex.itemSize, gl.FLOAT, false, 0, 0);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.normal.buffer);
-            gl.vertexAttribPointer(shaderManager.attributes.aVertexNormal, this.buffers.normal.itemSize, gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(shaderManager.getAttribute("aVertexNormal"), this.buffers.normal.itemSize, gl.FLOAT, false, 0, 0);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.buffers.texture.buffer);
-            gl.vertexAttribPointer(shaderManager.attributes.aTextureCoord, this.buffers.texture.itemSize, gl.FLOAT, false, 0, 0);
+            gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, gl.FLOAT, false, 0, 0);
 
             if (color) {
-                gl.uniform3fv(shaderManager.uniforms.uColor, color);
-                gl.uniform1i(shaderManager.uniforms.texturesCount, 0);
+                gl.uniform3fv(shaderManager.getUniform("uColor"), color);
+                gl.uniform1i(shaderManager.getUniform("texturesCount"), 0);
             } else if (this.textures.length > 0) {
                 var i = 0;
                 this.textures.forEach(function (textureInfo) {
-                    gl.uniform1i(shaderManager.uniforms.texturesCount, i + 1);
+                    gl.uniform1i(shaderManager.getUniform("texturesCount"), i + 1);
                     gl.activeTexture(textureInfo.activeId);
-                    gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture.get(filter));
+                    gl.bindTexture(gl.TEXTURE_2D, textureInfo.texture);
                     shaderManager.bindUniform("textureSamplers[" + i + "]");
                     gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
                 });
             }
 
             var normalMatrix = this.getNormalMatrix();
-            gl.uniformMatrix4fv(shaderManager.uniforms.uModelMatrix, false, this.modelMatrix);
-            gl.uniformMatrix4fv(shaderManager.uniforms.uViewMatrix, false, viewMatrix);
-            gl.uniformMatrix4fv(shaderManager.uniforms.uProjectionMatrix, false, projectionMatrix);
-            gl.uniformMatrix3fv(shaderManager.uniforms.uNormalMatrix, false, normalMatrix);
+            gl.uniformMatrix4fv(shaderManager.getUniform("uModelMatrix"), false, this.modelMatrix);
+            gl.uniformMatrix4fv(shaderManager.getUniform("uViewMatrix"), false, viewMatrix);
+            gl.uniformMatrix4fv(shaderManager.getUniform("uProjectionMatrix"), false, projectionMatrix);
+            gl.uniformMatrix3fv(shaderManager.getUniform("uNormalMatrix"), false, normalMatrix);
 
             if (this.buffers.index) {
                 gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.buffers.index.buffer);
@@ -763,6 +781,12 @@ $(document).ready(function() {
         drawCeiling();
     }
 
+    var worldSize = {
+        x: 10.0,
+        y: 4.0,
+        z: 10.0
+    };
+
     function drawLights() {
         gl.uniform1i(shaderManager.uniforms.directionalLightsCount, 0);
         gl.uniform1i(shaderManager.uniforms.pointLightsCount, 1);
@@ -782,13 +806,12 @@ $(document).ready(function() {
 
         mat4.perspective(projectionMatrix, 45, gl.viewportWidth / gl.viewportHeight, 0.1, 100.0);
 
-        drawCamera();
         drawLights();
 
         var walls = new Drawable(Cube);
         walls.addTexture(gl.TEXTURE0, textureManager.getTexture("floor_1"));
         walls.addTexture(gl.TEXTURE1, textureManager.getTexture("signs"));
-        walls.draw(viewMatrix, projectionMatrix);
+        walls.draw(camera.getViewMatrix(), projectionMatrix);
     }
 
     window.requestAnimFrame = (function() {
@@ -802,9 +825,22 @@ $(document).ready(function() {
             };
     })();
 
+    var camera = new Camera();
+    var keyboard = new Keyboard();
+    keyboard.bind(Keys.UpArrow, camera, camera.moveForward);
+    keyboard.bind(Keys.DownArrow, camera, camera.moveBackward);
+    keyboard.bind(Keys.LeftArrow, camera, camera.moveLeft);
+    keyboard.bind(Keys.RightArrow, camera, camera.moveRight);
+    keyboard.bind(Keys.PageUp, camera, camera.moveUp);
+    keyboard.bind(Keys.PageDown, camera, camera.moveDown);
+    keyboard.bind(Keys.S, camera, camera.rotatePitchMinus);
+    keyboard.bind(Keys.W, camera, camera.rotatePitchPlus);
+    keyboard.bind(Keys.A, camera, camera.rotateYawMinus);
+    keyboard.bind(Keys.D, camera, camera.rotateYawPlus);
+
     function tick() {
         requestAnimFrame(tick);
-        handleKeys();
+        keyboard.handle();
         drawScene();
     }
 
@@ -825,9 +861,6 @@ $(document).ready(function() {
 
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
     gl.enable(gl.DEPTH_TEST);
-
-    document.onkeydown = handleKeyDown;
-    document.onkeyup = handleKeyUp;
 
     tick();
 });
