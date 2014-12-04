@@ -58,6 +58,11 @@ uniform SpotLight spotLights[MAX_LIGHTS];
 uniform sampler2D textureSamplers[MAX_TEXTURES];
 uniform vec3 uColor;
 
+uniform bool uUseFog;
+uniform float uFogMinDistance;
+uniform float uFogMaxDistance;
+uniform vec3 uFogColor;
+
 vec4 getDirectionalLightColor(const DirectionalLight directionalLight, vec3 normal) {
     float diffuse = max(0.0, dot(normal, -directionalLight.direction));
     return vec4(directionalLight.ambientColor + diffuse * directionalLight.diffuseColor, 1.0);
@@ -100,22 +105,45 @@ vec4 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
     }
 }
 
+float getFogFactor(float uFogMinDistance, float uFogMaxDistance, vec4 vEye, vec4 vPosition) {
+    float distance = length(vPosition - vEye);
+
+    // Compute linear fog equation
+    float factor = (uFogMaxDistance - distance) / (uFogMaxDistance - uFogMinDistance );
+
+    // Clamp in the [0,1] range
+    factor = clamp(factor, 0.0, 1.0);
+
+    return factor;
+}
+
+vec4 getFogColor(vec4 color, vec3 uFogColor, float fogFactor) {
+    return color * fogFactor + vec4(uFogColor, 1.0) * (1.0 - fogFactor);
+}
+
 void main(void) {
 
-    vec4 color = vec4(0.0, 0.0, 0.0, 1.0);
+    vec4 lightFactor = vec4(0.0, 0.0, 0.0, 1.0);
 
     for(int i = 0; i < MAX_LIGHTS; i++) {
         if(i < directionalLightsCount)
-            color += getDirectionalLightColor(directionalLights[i], vNormal);
+            lightFactor += getDirectionalLightColor(directionalLights[i], vNormal);
 
         if(i < pointLightsCount)
-            color += getPointLightColor(pointLights[i], vPosition.xyz, vNormal);
+            lightFactor += getPointLightColor(pointLights[i], vPosition.xyz, vNormal);
 
         if(i < spotLightsCount)
-            color += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
+            lightFactor += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
     }
 
-    gl_FragColor = color * getColor(texturesCount, textureSamplers, uColor);
+    vec4 color = getColor(texturesCount, textureSamplers, uColor);
+
+    if (uUseFog) {
+        float fogFactor = getFogFactor(uFogMinDistance, uFogMaxDistance, vEye, vPosition);
+        color = getFogColor(color, uFogColor, fogFactor);
+    }
+
+    gl_FragColor = lightFactor * color;
 }
 </script>
 

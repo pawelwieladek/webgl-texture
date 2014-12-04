@@ -7,6 +7,7 @@ $(document).ready(function() {
         this.shaderManager = new ShaderManager();
         this.lightManager = new LightManager();
         this.textureManager = new TextureManager();
+        this.effectsManager = new EffectsManager();
         this.projectionMatrix = mat4.create();
         this.drawables = [];
 
@@ -72,6 +73,7 @@ $(document).ready(function() {
             this.keyboard.handle();
 
             this.lightManager.draw(this.shaderManager);
+            this.effectsManager.draw(this.shaderManager);
             this.drawables.forEach(function(drawable) {
                 drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
             }.bind(this));
@@ -173,6 +175,10 @@ $(document).ready(function() {
             this.bindUniform("directionalLightsCount");
             this.bindUniform("pointLightsCount");
             this.bindUniform("spotLightsCount");
+            this.bindUniform("uUseFog");
+            this.bindUniform("uFogColor");
+            this.bindUniform("uFogMinDistance");
+            this.bindUniform("uFogMaxDistance");
             this.bindUniform("pointLights[0].position");
             this.bindUniform("pointLights[0].diffuseColor");
             this.bindUniform("pointLights[0].ambientColor");
@@ -183,6 +189,23 @@ $(document).ready(function() {
         init: function() {
             this.createShaders();
             this.bindLocations();
+        }
+    };
+
+    function EffectsManager() {
+        this.useFog = true;
+        this.fogColor = vec3.fromValues(1.0, 1.0, 1.0);
+        this.fogMinDistance = 5.0;
+        this.fogMaxDistance = 100.0;
+        
+    }
+
+    EffectsManager.prototype = {
+        draw: function(shaderManager) {
+            window.gl.uniform1i(shaderManager.getUniform("uUseFog"), this.useFog);
+            window.gl.uniform1f(shaderManager.getUniform("uFogMinDistance"), this.fogMinDistance);
+            window.gl.uniform1f(shaderManager.getUniform("uFogMaxDistance"), this.fogMaxDistance);
+            window.gl.uniform3fv(shaderManager.getUniform("uFogColor"), this.fogColor);
         }
     };
 
