@@ -1,6 +1,7 @@
 var mat4 = require("gl-matrix").mat4;
 var mat3 = require("gl-matrix").mat3;
 var vec3 = require("gl-matrix").vec3;
+var vec2 = require("gl-matrix").vec2;
 
 function Drawable(PrimitiveDefinition) {
     this.primitive = PrimitiveDefinition();
@@ -25,8 +26,10 @@ function Drawable(PrimitiveDefinition) {
     this.color = null;
     this.textures = [];
     this.modelMatrix = mat4.create();
-    this.textureMatrix = mat4.create();
-    mat4.identity(this.modelMatrix);
+    this.textureMatrix = mat3.create();
+    this.textureScale = 2.0;
+    this.textureScaleStep = 0.02;
+    this.textureScalingEnabled = false;
 
     window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
     window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array(this.primitive.vertex.array), window.gl.STATIC_DRAW);
@@ -66,8 +69,20 @@ Drawable.prototype = {
     getModelMatrix: function() {
         return this.modelMatrix;
     },
+    getTextureMatrix: function() {
+        return this.textureMatrix;
+    },
     transform: function(transformation, value) {
         transformation(this.modelMatrix, this.modelMatrix, value);
+    },
+    shrinkTexture: function() {
+        this.textureScale += this.textureScaleStep;
+    },
+    enlargeTexture: function() {
+        this.textureScale -= this.textureScaleStep;
+    },
+    enableTextureScaling: function() {
+        this.textureScalingEnabled = true;
     },
     draw: function(shaderManager, textureManager, viewMatrix, projectionMatrix) {
 
@@ -92,6 +107,16 @@ Drawable.prototype = {
                 shaderManager.bindUniform("textureSamplers[" + i + "]");
                 window.gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
             });
+        }
+
+        if(this.textureScalingEnabled) {
+            var textureMatrix = mat3.clone(this.textureMatrix);
+            mat3.scale(textureMatrix, this.textureMatrix, vec3.fromValues(this.textureScale, this.textureScale, 1.0));
+            mat3.translate(textureMatrix, textureMatrix, vec3.fromValues(-0.5, -0.5, 0.0));
+            mat3.translate(textureMatrix, textureMatrix, vec3.fromValues(0.5 / this.textureScale, 0.5 / this.textureScale, 0.0));
+            window.gl.uniformMatrix3fv(shaderManager.getUniform("uTextureMatrix"), false, textureMatrix);
+        } else {
+            window.gl.uniformMatrix3fv(shaderManager.getUniform("uTextureMatrix"), false, this.textureMatrix);
         }
 
         var normalMatrix = this.getNormalMatrix();

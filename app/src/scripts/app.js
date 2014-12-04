@@ -2,6 +2,8 @@ var $ = require("jquery");
 var Scene = require("../lib/scene");
 var vec3 = require("gl-matrix").vec3;
 var mat4 = require("gl-matrix").mat4;
+var mat3 = require("gl-matrix").mat3;
+var vec2 = require("gl-matrix").vec2;
 
 $(document).ready(function() {
     var canvas = document.getElementById("scene");
@@ -14,7 +16,8 @@ $(document).ready(function() {
         ["ceiling", "images/ceiling.jpg"],
         ["floor_1", "images/floor_1.jpg"],
         ["floor_2", "images/floor_2.jpg"],
-        ["signs", "images/signs.jpg"]
+        ["signs", "images/signs.jpg"],
+        ["poland", "images/poland.jpg"]
     ]);
 
     scene.getCamera().serBoundaries(vec3.fromValues(-20.0, -4.0, -20.0), vec3.fromValues(20.0, 4.0, 20.0));
@@ -43,12 +46,15 @@ $(document).ready(function() {
     wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall1);
 
-    var wall2 = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wall2.addTexture(window.gl.TEXTURE0, "crowd");
-    wall2.transform(mat4.rotateY, -90 * Math.PI / 180);
-    wall2.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
-    wall2.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
-    scene.addDrawable(wall2);
+    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
+    wallPanel.addTexture(window.gl.TEXTURE0, "poland");
+    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
+    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    wallPanel.enableTextureScaling();
+    scene.bindKey(Scene.Keyboard.Keys.C, this, function() { wallPanel.shrinkTexture(); });
+    scene.bindKey(Scene.Keyboard.Keys.V, this, function() { wallPanel.enlargeTexture(); });
+    scene.addDrawable(wallPanel);
 
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall3.addTexture(window.gl.TEXTURE0, "crowd");

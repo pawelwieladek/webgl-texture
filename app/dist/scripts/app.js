@@ -3,6 +3,8 @@ var $ = require("./../../../bower_components/jquery/dist/jquery.js");
 var Scene = require("../lib/scene");
 var vec3 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").vec3;
 var mat4 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").mat4;
+var mat3 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").mat3;
+var vec2 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").vec2;
 
 $(document).ready(function() {
     var canvas = document.getElementById("scene");
@@ -15,7 +17,8 @@ $(document).ready(function() {
         ["ceiling", "images/ceiling.jpg"],
         ["floor_1", "images/floor_1.jpg"],
         ["floor_2", "images/floor_2.jpg"],
-        ["signs", "images/signs.jpg"]
+        ["signs", "images/signs.jpg"],
+        ["poland", "images/poland.jpg"]
     ]);
 
     scene.getCamera().serBoundaries(vec3.fromValues(-20.0, -4.0, -20.0), vec3.fromValues(20.0, 4.0, 20.0));
@@ -44,12 +47,15 @@ $(document).ready(function() {
     wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall1);
 
-    var wall2 = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wall2.addTexture(window.gl.TEXTURE0, "crowd");
-    wall2.transform(mat4.rotateY, -90 * Math.PI / 180);
-    wall2.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
-    wall2.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
-    scene.addDrawable(wall2);
+    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
+    wallPanel.addTexture(window.gl.TEXTURE0, "poland");
+    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
+    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    wallPanel.enableTextureScaling();
+    scene.bindKey(Scene.Keyboard.Keys.C, this, function() { wallPanel.shrinkTexture(); });
+    scene.bindKey(Scene.Keyboard.Keys.V, this, function() { wallPanel.enlargeTexture(); });
+    scene.addDrawable(wallPanel);
 
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall3.addTexture(window.gl.TEXTURE0, "crowd");
@@ -219,6 +225,7 @@ module.exports = Camera;
 var mat4 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").mat4;
 var mat3 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").mat3;
 var vec3 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").vec3;
+var vec2 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").vec2;
 
 function Drawable(PrimitiveDefinition) {
     this.primitive = PrimitiveDefinition();
@@ -243,8 +250,10 @@ function Drawable(PrimitiveDefinition) {
     this.color = null;
     this.textures = [];
     this.modelMatrix = mat4.create();
-    this.textureMatrix = mat4.create();
-    mat4.identity(this.modelMatrix);
+    this.textureMatrix = mat3.create();
+    this.textureScale = 2.0;
+    this.textureScaleStep = 0.02;
+    this.textureScalingEnabled = false;
 
     window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
     window.gl.bufferData(window.gl.ARRAY_BUFFER, new Float32Array(this.primitive.vertex.array), window.gl.STATIC_DRAW);
@@ -284,8 +293,20 @@ Drawable.prototype = {
     getModelMatrix: function() {
         return this.modelMatrix;
     },
+    getTextureMatrix: function() {
+        return this.textureMatrix;
+    },
     transform: function(transformation, value) {
         transformation(this.modelMatrix, this.modelMatrix, value);
+    },
+    shrinkTexture: function() {
+        this.textureScale += this.textureScaleStep;
+    },
+    enlargeTexture: function() {
+        this.textureScale -= this.textureScaleStep;
+    },
+    enableTextureScaling: function() {
+        this.textureScalingEnabled = true;
     },
     draw: function(shaderManager, textureManager, viewMatrix, projectionMatrix) {
 
@@ -310,6 +331,16 @@ Drawable.prototype = {
                 shaderManager.bindUniform("textureSamplers[" + i + "]");
                 window.gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
             });
+        }
+
+        if(this.textureScalingEnabled) {
+            var textureMatrix = mat3.clone(this.textureMatrix);
+            mat3.scale(textureMatrix, this.textureMatrix, vec3.fromValues(this.textureScale, this.textureScale, 1.0));
+            mat3.translate(textureMatrix, textureMatrix, vec3.fromValues(-0.5, -0.5, 0.0));
+            mat3.translate(textureMatrix, textureMatrix, vec3.fromValues(0.5 / this.textureScale, 0.5 / this.textureScale, 0.0));
+            window.gl.uniformMatrix3fv(shaderManager.getUniform("uTextureMatrix"), false, textureMatrix);
+        } else {
+            window.gl.uniformMatrix3fv(shaderManager.getUniform("uTextureMatrix"), false, this.textureMatrix);
         }
 
         var normalMatrix = this.getNormalMatrix();
@@ -901,16 +932,22 @@ function Texture(src) {
         window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[0]);
         window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[0].image);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.NEAREST);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_S, window.gl.CLAMP_TO_EDGE);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_T, window.gl.CLAMP_TO_EDGE);
 
         window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[1]);
         window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[1].image);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_S, window.gl.CLAMP_TO_EDGE);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_T, window.gl.CLAMP_TO_EDGE);
 
         window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[2]);
         window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[2].image);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR_MIPMAP_NEAREST);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_S, window.gl.CLAMP_TO_EDGE);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_T, window.gl.CLAMP_TO_EDGE);
         window.gl.generateMipmap(window.gl.TEXTURE_2D);
 
         window.gl.bindTexture(window.gl.TEXTURE_2D, null);
