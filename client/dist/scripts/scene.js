@@ -73,7 +73,7 @@ $(document).ready(function() {
 
             this.lightManager.draw(this.shaderManager);
             this.drawables.forEach(function(drawable) {
-                drawable.draw(this.shaderManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
+                drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
             }.bind(this));
         },
         run: function() {
@@ -198,9 +198,14 @@ $(document).ready(function() {
         getTexture: function(name) {
             return this.textures[name].getVersion(this.filter);
         },
-        changeFilter: function() {
-            debugger;
-            this.filter = (this.filter + 1) % 3;
+        setFilter0: function() {
+            this.filter = 0;
+        },
+        setFilter1: function() {
+            this.filter = 1;
+        },
+        setFilter2: function() {
+            this.filter = 2;
         },
         init: function(textures) {
             textures.forEach(function(textureInfo) {
@@ -231,7 +236,6 @@ $(document).ready(function() {
 
             window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[0]);
             window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[0].image);
-            window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.NEAREST);
             window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.NEAREST);
 
             window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[1]);
@@ -265,11 +269,27 @@ $(document).ready(function() {
         this.rotateStep = Math.PI / 180;
         this.pitchAngle = 0.0;
         this.yawAngle = 0.0;
+        this.boundaries = {
+            lower: vec3.fromValues(-1.0, -1.0, -1.0),
+            upper: vec3.fromValues(1.0, 1.0, 1.0),
+            epsilon: 0.1
+        }
     }
 
     Camera.prototype = {
         setPosition: function(position) {
             this.position = position;
+        },
+        serBoundaries: function(lower, upper) {
+            this.boundaries = {
+                lower: lower,
+                upper: upper
+            }
+        },
+        clamp: function(out, position, lower, upper) {
+            for(var i = 0; i < position.length; i++) {
+                out[i] = position[i] < lower[i] ? lower[i] : (position[i] > upper[i] ? upper[i] : position[i]);
+            }
         },
         getViewMatrix: function() {
             var rotationMatrix = mat4.create();
@@ -300,31 +320,37 @@ $(document).ready(function() {
             var forward = vec3.create();
             vec3.scale(forward, this.forward, -this.translateStep);
             vec3.add(this.position, this.position, forward);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         moveBackward: function() {
             var forward = vec3.create();
             vec3.scale(forward, this.forward, this.translateStep);
             vec3.add(this.position, this.position, forward);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         moveLeft: function() {
             var tangent = vec3.create();
             vec3.scale(tangent, this.tangent, -this.translateStep);
             vec3.add(this.position, this.position, tangent);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         moveRight: function() {
             var tangent = vec3.create();
             vec3.scale(tangent, this.tangent, this.translateStep);
             vec3.add(this.position, this.position, tangent);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         moveUp: function() {
             var up = vec3.create();
             vec3.scale(up, this.up, this.translateStep);
             vec3.add(this.position, this.position, up);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         moveDown: function() {
             var up = vec3.create();
             vec3.scale(up, this.up, -this.translateStep);
             vec3.add(this.position, this.position, up);
+            this.clamp(this.position, this.position, this.boundaries.lower, this.boundaries.upper);
         },
         rotatePitchMinus: function() {
             this.pitchAngle -= this.rotateStep;
@@ -615,11 +641,19 @@ $(document).ready(function() {
     }
 
     Drawable.prototype = {
-        addTexture: function(activeId, texture) {
+        addTexture: function(activeId, textureName) {
             this.textures.push({
                 activeId: activeId,
-                texture: texture
+                textureName: textureName
             })
+        },
+        setTexture: function(activeId, textureName) {
+            for (var i = 0; i < this.textures.length; i++) {
+                if(this.textures[i].activeId == activeId) {
+                    this.textures[i].textureName = textureName;
+                    return;
+                }
+            }
         },
         setColor: function(color) {
             this.color = color;
@@ -637,7 +671,7 @@ $(document).ready(function() {
         transform: function(transformation, value) {
             transformation(this.modelMatrix, this.modelMatrix, value);
         },
-        draw: function(shaderManager, viewMatrix, projectionMatrix) {
+        draw: function(shaderManager, textureManager, viewMatrix, projectionMatrix) {
 
             window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.vertex.buffer);
             window.gl.vertexAttribPointer(shaderManager.getAttribute("aVertexPosition"), this.buffers.vertex.itemSize, window.gl.FLOAT, false, 0, 0);
@@ -656,7 +690,7 @@ $(document).ready(function() {
                 this.textures.forEach(function (textureInfo) {
                     window.gl.uniform1i(shaderManager.getUniform("texturesCount"), i + 1);
                     window.gl.activeTexture(textureInfo.activeId);
-                    window.gl.bindTexture(window.gl.TEXTURE_2D, textureInfo.texture);
+                    window.gl.bindTexture(window.gl.TEXTURE_2D, textureManager.getTexture(textureInfo.textureName));
                     shaderManager.bindUniform("textureSamplers[" + i + "]");
                     window.gl.uniform1i(shaderManager.getUniform("textureSamplers[" + i + "]"), i++);
                 });
@@ -728,8 +762,11 @@ $(document).ready(function() {
         ["crowd", "images/crowd.jpg"],
         ["ceiling", "images/ceiling.jpg"],
         ["floor_1", "images/floor_1.jpg"],
+        ["floor_2", "images/floor_2.jpg"],
         ["signs", "images/signs.jpg"]
     ]);
+
+    scene.getCamera().serBoundaries(vec3.fromValues(-20.0, -4.0, -20.0), vec3.fromValues(20.0, 4.0, 20.0));
 
     scene.bindKey(Keys.UpArrow, scene.getCamera(), scene.getCamera().moveForward);
     scene.bindKey(Keys.DownArrow, scene.getCamera(), scene.getCamera().moveBackward);
@@ -741,44 +778,48 @@ $(document).ready(function() {
     scene.bindKey(Keys.W, scene.getCamera(), scene.getCamera().rotatePitchPlus);
     scene.bindKey(Keys.A, scene.getCamera(), scene.getCamera().rotateYawMinus);
     scene.bindKey(Keys.D, scene.getCamera(), scene.getCamera().rotateYawPlus);
-    scene.bindKey(Keys.F, scene.getTextureManager(), scene.getTextureManager().changeFilter);
+    scene.bindKey(Keys.F, scene.getTextureManager(), scene.getTextureManager().setFilter0);
+    scene.bindKey(Keys.G, scene.getTextureManager(), scene.getTextureManager().setFilter1);
+    scene.bindKey(Keys.H, scene.getTextureManager(), scene.getTextureManager().setFilter2);
 
     var wall1 = new Drawable(Rectangle);
-    wall1.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall1.addTexture(window.gl.TEXTURE0, "crowd");
     wall1.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall1);
 
     var wall2 = new Drawable(Rectangle);
-    wall2.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall2.addTexture(window.gl.TEXTURE0, "crowd");
     wall2.transform(mat4.rotateY, -90 * Math.PI / 180);
     wall2.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall2.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall2);
 
     var wall3 = new Drawable(Rectangle);
-    wall3.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall3.addTexture(window.gl.TEXTURE0, "crowd");
     wall3.transform(mat4.rotateY, 90 * Math.PI / 180);
     wall3.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall3.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall3);
 
     var wall4 = new Drawable(Rectangle);
-    wall4.addTexture(window.gl.TEXTURE0, scene.getTexture("crowd"));
+    wall4.addTexture(window.gl.TEXTURE0, "crowd");
     wall4.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall4.transform(mat4.translate, vec3.fromValues(0.0, 0.0, 1.0));
     scene.addDrawable(wall4);
 
     var floor = new Drawable(Rectangle);
-    floor.addTexture(window.gl.TEXTURE0, scene.getTexture("floor_1"));
-    floor.addTexture(window.gl.TEXTURE1, scene.getTexture("signs"));
+    floor.addTexture(window.gl.TEXTURE0, "floor_1");
+    floor.addTexture(window.gl.TEXTURE1, "signs");
     floor.transform(mat4.translate, vec3.fromValues(0.0, -4.0, 0.0));
     floor.transform(mat4.rotateX, 90 * Math.PI / 180);
     floor.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
     scene.addDrawable(floor);
+    scene.bindKey(Keys.Z, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_1"); });
+    scene.bindKey(Keys.X, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_2"); });
 
     var ceiling = new Drawable(Rectangle);
-    ceiling.addTexture(window.gl.TEXTURE0, scene.getTexture("ceiling"));
+    ceiling.setColor(vec3.fromValues(0.7, 0.7, 0.7));
     ceiling.transform(mat4.translate, vec3.fromValues(0.0, 4.0, 0.0));
     ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
     ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));

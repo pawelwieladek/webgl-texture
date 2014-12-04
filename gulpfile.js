@@ -10,6 +10,7 @@ gulp.task('clean', function(cb) {
 gulp.task('libs', ['clean'], function() {
     gulp.src([
         './node_modules/jquery/dist/jquery.min.js',
+        './bower_components/underscore/underscore.js',
         './bower_components/gl-matrix/dist/gl-matrix.js'
     ]).pipe(gulp.dest('./client/dist/lib'));
 });
