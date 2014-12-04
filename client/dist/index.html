@@ -106,7 +106,7 @@ vec4 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
 }
 
 float getFogFactor(float uFogMinDistance, float uFogMaxDistance, vec4 vEye, vec4 vPosition) {
-    float distance = length(vPosition - vEye);
+    float distance = length(vPosition + vEye);
 
     // Compute linear fog equation
     float factor = (uFogMaxDistance - distance) / (uFogMaxDistance - uFogMinDistance );

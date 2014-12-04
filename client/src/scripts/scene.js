@@ -61,6 +61,9 @@ $(document).ready(function() {
         getTextureManager: function() {
             return this.textureManager;
         },
+        getEffectsManager: function() {
+            return this.effectsManager;
+        },
         bindKey: function(keyCode, handler, action) {
             this.keyboard.bind(keyCode, handler, action);
         },
@@ -197,10 +200,28 @@ $(document).ready(function() {
         this.fogColor = vec3.fromValues(1.0, 1.0, 1.0);
         this.fogMinDistance = 5.0;
         this.fogMaxDistance = 100.0;
-        
+        this.fogDistanceStep = 0.5;
     }
 
     EffectsManager.prototype = {
+        increaseFogMinDistance: function() {
+            if (this.fogMinDistance + this.fogDistanceStep < this.fogMaxDistance) {
+                this.fogMinDistance += this.fogDistanceStep;
+            }
+        },
+        decreaseFogMinDistance: function() {
+            if (this.fogMinDistance - this.fogDistanceStep > 0) {
+                this.fogMinDistance -= this.fogDistanceStep;
+            }
+        },
+        increaseFogMaxDistance: function() {
+            this.fogMaxDistance += this.fogDistanceStep;
+        },
+        decreaseFogMaxDistance: function() {
+            if (this.fogMaxDistance - this.fogDistanceStep > this.fogMinDistance) {
+                this.fogMaxDistance -= this.fogDistanceStep;
+            }
+        },
         draw: function(shaderManager) {
             window.gl.uniform1i(shaderManager.getUniform("uUseFog"), this.useFog);
             window.gl.uniform1f(shaderManager.getUniform("uFogMinDistance"), this.fogMinDistance);
@@ -804,6 +825,10 @@ $(document).ready(function() {
     scene.bindKey(Keys.F, scene.getTextureManager(), scene.getTextureManager().setFilter0);
     scene.bindKey(Keys.G, scene.getTextureManager(), scene.getTextureManager().setFilter1);
     scene.bindKey(Keys.H, scene.getTextureManager(), scene.getTextureManager().setFilter2);
+    scene.bindKey(Keys.L, scene.getEffectsManager(), scene.getEffectsManager().increaseFogMinDistance);
+    scene.bindKey(Keys.K, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMinDistance);
+    scene.bindKey(Keys.P, scene.getEffectsManager(), scene.getEffectsManager().increaseFogMaxDistance);
+    scene.bindKey(Keys.O, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMaxDistance);
 
     var wall1 = new Drawable(Rectangle);
     wall1.addTexture(window.gl.TEXTURE0, "crowd");
