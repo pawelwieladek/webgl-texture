@@ -1,38 +1,35 @@
 var gulp = require('gulp');
 var del = require('del');
 var server = require('gulp-express');
+var browserify = require('browserify');
+var source = require("vinyl-source-stream");
 
 gulp.task('clean', function(cb) {
     // You can use multiple globbing patterns as you would with `gulp.src`
-    del(['client/dist'], cb);
-});
-
-gulp.task('libs', ['clean'], function() {
-    gulp.src([
-        './node_modules/jquery/dist/jquery.min.js',
-        './bower_components/underscore/underscore.js',
-        './bower_components/gl-matrix/dist/gl-matrix.js'
-    ]).pipe(gulp.dest('./client/dist/lib'));
+    del(['app/dist'], cb);
 });
 
 var scripts = function() {
-    gulp.src('./client/src/scripts/**')
-        .pipe(gulp.dest('./client/dist/scripts'));
+    return browserify('./app/src/scripts/app.js')
+        .transform("debowerify")
+        .bundle()
+        .pipe(source('app.js'))
+        .pipe(gulp.dest('app/dist/scripts/'))
 };
 
 var styles = function() {
-    gulp.src('./client/src/styles/**')
-        .pipe(gulp.dest('./client/dist/styles'));
+    gulp.src('./app/src/styles/**')
+        .pipe(gulp.dest('./app/dist/styles'));
 };
 
 var images = function() {
-    gulp.src('./client/src/images/**')
-        .pipe(gulp.dest('./client/dist/images'));
+    gulp.src('./app/src/images/**')
+        .pipe(gulp.dest('./app/dist/images'));
 };
 
 var html = function() {
-    gulp.src('./client/src/*.html')
-        .pipe(gulp.dest('./client/dist'));
+    gulp.src('./app/src/*.html')
+        .pipe(gulp.dest('./app/dist'));
 };
 
 gulp.task('scripts', ['clean'], scripts);
@@ -47,7 +44,7 @@ gulp.task('images-dirty', images);
 gulp.task('html', ['clean'], html);
 gulp.task('html-dirty', html);
 
-gulp.task('build', ['scripts', 'styles', 'images', 'html', 'libs']);
+gulp.task('build', ['scripts', 'styles', 'images', 'html']);
 
 gulp.task('serve', ['build'], function () {
     // Start the server at the beginning of the task
@@ -56,10 +53,10 @@ gulp.task('serve', ['build'], function () {
     });
 
     // Restart the server when file changes
-    gulp.watch(['client/src/*.html'], ['html-dirty']);
-    gulp.watch(['client/src/scripts/**/*.js'], ['scripts-dirty']);
-    gulp.watch(['client/src/styles/**/*.css'], ['styles-dirty']);
-    gulp.watch(['client/src/images/**'], ['images-dirty']);
+    gulp.watch(['app/src/*.html'], ['html-dirty']);
+    gulp.watch(['app/src/**/*.js'], ['scripts-dirty']);
+    gulp.watch(['app/src/styles/**/*.css'], ['styles-dirty']);
+    gulp.watch(['app/src/images/**'], ['images-dirty']);
     gulp.watch(['server/app.js'], server.run);
 });
 

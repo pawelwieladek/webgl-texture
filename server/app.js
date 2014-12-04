@@ -4,7 +4,7 @@ var path = require('path');
 var app = module.exports.app = exports.app = express();
 
 // Serve static files
-app.use(express.static(path.join(__dirname, "../client/dist")));
+app.use(express.static(path.join(__dirname, "../app/dist")));
 
 // Run server
 var server = app.listen(3000, function () {

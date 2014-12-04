@@ -8,9 +8,6 @@
 <body>
 
 <canvas id="scene" width="500" height="500"></canvas>
-<script type="text/javascript" src="lib/jquery.min.js"></script>
-<script type="text/javascript" src="lib/gl-matrix.js"></script>
-<script type="text/javascript" src="lib/underscore.js"></script>
 <script id="shader-fs" type="x-shader/x-fragment">
 precision mediump float;
 
@@ -170,6 +167,6 @@ void main(void) {
     gl_Position = uProjectionMatrix * vEye;
 }
 </script>
-<script type="text/javascript" src="scripts/scene.js"></script>
+<script type="text/javascript" src="scripts/app.js"></script>
 </body>
 </html>
