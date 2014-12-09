@@ -39,6 +39,8 @@ $(document).ready(function() {
     scene.bindKey(Scene.Keyboard.Keys.K, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMinDistance);
     scene.bindKey(Scene.Keyboard.Keys.P, scene.getEffectsManager(), scene.getEffectsManager().increaseFogMaxDistance);
     scene.bindKey(Scene.Keyboard.Keys.O, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMaxDistance);
+    scene.bindKey(Scene.Keyboard.Keys.I, scene.getEffectsManager(), scene.getEffectsManager().enableFog);
+    scene.bindKey(Scene.Keyboard.Keys.J, scene.getEffectsManager(), scene.getEffectsManager().disableFog);
 
     var wall1 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall1.addTexture(window.gl.TEXTURE0, "crowd");

@@ -27,7 +27,7 @@ function PointLight(index, options) {
     this.index = index;
     this.position = options.position || vec3.fromValues(0.0, 0.0, 1.0);
     this.diffuseColor = options.diffuseColor || vec3.fromValues(0.1, 0.1, 0.1);
-    this.ambientColor = options.ambientColor || vec3.fromValues(0.8, 0.8, 0.8);
+    this.ambientColor = options.ambientColor || vec3.fromValues(0.9, 0.9, 0.9);
     this.constantAttenuation = options.constantAttenuation || 1;
     this.linearAttenuation = options.linearAttenuation || 0;
     this.exponentAttenuation = options.exponentAttenuation || 0;

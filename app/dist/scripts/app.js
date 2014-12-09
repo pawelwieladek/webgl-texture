@@ -40,6 +40,8 @@ $(document).ready(function() {
     scene.bindKey(Scene.Keyboard.Keys.K, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMinDistance);
     scene.bindKey(Scene.Keyboard.Keys.P, scene.getEffectsManager(), scene.getEffectsManager().increaseFogMaxDistance);
     scene.bindKey(Scene.Keyboard.Keys.O, scene.getEffectsManager(), scene.getEffectsManager().decreaseFogMaxDistance);
+    scene.bindKey(Scene.Keyboard.Keys.I, scene.getEffectsManager(), scene.getEffectsManager().enableFog);
+    scene.bindKey(Scene.Keyboard.Keys.J, scene.getEffectsManager(), scene.getEffectsManager().disableFog);
 
     var wall1 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall1.addTexture(window.gl.TEXTURE0, "crowd");
@@ -369,6 +371,12 @@ function EffectsManager() {
 }
 
 EffectsManager.prototype = {
+    enableFog: function() {
+        this.useFog = true;
+    },
+    disableFog: function() {
+        this.useFog = false;
+    },
     increaseFogMinDistance: function() {
         if (this.fogMinDistance + this.fogDistanceStep < this.fogMaxDistance) {
             this.fogMinDistance += this.fogDistanceStep;
@@ -494,7 +502,7 @@ function PointLight(index, options) {
     this.index = index;
     this.position = options.position || vec3.fromValues(0.0, 0.0, 1.0);
     this.diffuseColor = options.diffuseColor || vec3.fromValues(0.1, 0.1, 0.1);
-    this.ambientColor = options.ambientColor || vec3.fromValues(0.8, 0.8, 0.8);
+    this.ambientColor = options.ambientColor || vec3.fromValues(0.9, 0.9, 0.9);
     this.constantAttenuation = options.constantAttenuation || 1;
     this.linearAttenuation = options.linearAttenuation || 0;
     this.exponentAttenuation = options.exponentAttenuation || 0;
@@ -728,7 +736,7 @@ function Scene(canvas) {
     })();
 
     try {
-        window.gl = canvas.getContext("experimental-webgl");
+        window.gl = canvas.getContext("experimental-webgl", { antialias: true });
         window.gl.viewportWidth = this.canvas.width;
         window.gl.viewportHeight = this.canvas.height;
     }
@@ -945,7 +953,7 @@ function Texture(src) {
         window.gl.bindTexture(window.gl.TEXTURE_2D, textureVersions[2]);
         window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, window.gl.RGBA, window.gl.UNSIGNED_BYTE, textureVersions[2].image);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
-        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR_MIPMAP_NEAREST);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR_MIPMAP_LINEAR);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_S, window.gl.CLAMP_TO_EDGE);
         window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_WRAP_T, window.gl.CLAMP_TO_EDGE);
         window.gl.generateMipmap(window.gl.TEXTURE_2D);

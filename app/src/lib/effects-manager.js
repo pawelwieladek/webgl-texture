@@ -9,6 +9,12 @@ function EffectsManager() {
 }
 
 EffectsManager.prototype = {
+    enableFog: function() {
+        this.useFog = true;
+    },
+    disableFog: function() {
+        this.useFog = false;
+    },
     increaseFogMinDistance: function() {
         if (this.fogMinDistance + this.fogDistanceStep < this.fogMaxDistance) {
             this.fogMinDistance += this.fogDistanceStep;

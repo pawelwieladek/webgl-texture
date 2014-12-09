@@ -32,7 +32,7 @@ function Scene(canvas) {
     })();
 
     try {
-        window.gl = canvas.getContext("experimental-webgl");
+        window.gl = canvas.getContext("experimental-webgl", { antialias: true });
         window.gl.viewportWidth = this.canvas.width;
         window.gl.viewportHeight = this.canvas.height;
     }
