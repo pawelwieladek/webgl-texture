@@ -25,6 +25,7 @@ function Drawable(PrimitiveDefinition) {
     };
     this.useLight = true;
     this.color = null;
+    this.alpha = 1.0;
     this.textures = [];
     this.modelMatrix = mat4.create();
     this.textureMatrix = mat3.create();
@@ -59,6 +60,9 @@ Drawable.prototype = {
     },
     setColor: function(color) {
         this.color = color;
+    },
+    setAlpha: function(alpha) {
+        this.alpha = alpha;
     },
     setLight: function(useLight) {
         this.useLight = useLight;
@@ -104,6 +108,7 @@ Drawable.prototype = {
         window.gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, window.gl.FLOAT, false, 0, 0);
 
         window.gl.uniform1i(shaderManager.getUniform("uUseLight"), this.useLight);
+        window.gl.uniform1f(shaderManager.getUniform("uAlpha"), this.alpha);
 
         if (this.color) {
             window.gl.uniform3fv(shaderManager.getUniform("uColor"), this.color);

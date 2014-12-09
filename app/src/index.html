@@ -55,19 +55,21 @@ uniform PointLight pointLights[MAX_LIGHTS];
 uniform SpotLight spotLights[MAX_LIGHTS];
 
 uniform sampler2D textureSamplers[MAX_TEXTURES];
+
 uniform vec3 uColor;
+uniform float uAlpha;
 
 uniform bool uUseFog;
 uniform float uFogMinDistance;
 uniform float uFogMaxDistance;
 uniform vec3 uFogColor;
 
-vec4 getDirectionalLightColor(const DirectionalLight directionalLight, vec3 normal) {
+vec3 getDirectionalLightColor(const DirectionalLight directionalLight, vec3 normal) {
     float diffuse = max(0.0, dot(normal, -directionalLight.direction));
-    return vec4(directionalLight.ambientColor + diffuse * directionalLight.diffuseColor, 1.0);
+    return vec3(directionalLight.ambientColor + diffuse * directionalLight.diffuseColor);
 }
 
-vec4 getPointLightColor(const PointLight pointLight, vec3 position, vec3 normal) {
+vec3 getPointLightColor(const PointLight pointLight, vec3 position, vec3 normal) {
     vec3 positionToLight = position - pointLight.position;
     float distance = length(positionToLight);
     positionToLight = normalize(positionToLight);
@@ -75,10 +77,10 @@ vec4 getPointLightColor(const PointLight pointLight, vec3 position, vec3 normal)
     float diffuse = max(0.0, dot(normal, -positionToLight));
     float attenuation = pointLight.constantAttenuation + pointLight.linearAttenuation * distance + pointLight.exponentAttenuation * distance * distance;
 
-    return vec4(pointLight.ambientColor + pointLight.diffuseColor * diffuse / attenuation, 1.0);
+    return vec3(pointLight.ambientColor + pointLight.diffuseColor * diffuse / attenuation);
 }
 
-vec4 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
+vec3 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
     vec3 L = spotLight.position - position;
     float distance = length(L);
     L = normalize(L);
@@ -86,20 +88,20 @@ vec4 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
     float spotEffect = smoothstep(spotLight.cosOuterAngle, spotLight.cosInnerAngle, dot(L, -spotLight.direction));
     float attenuation = smoothstep(spotLight.range, 0.0, distance);
 
-    return vec4(spotLight.diffuseColor * spotEffect * attenuation, 1.0);
+    return vec3(spotLight.diffuseColor * spotEffect * attenuation);
 }
 
-vec4 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
-    vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
+vec3 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
+    vec3 color = vec3(0.0, 0.0, 0.0);
 
     if (texturesCount > 0) {
         for(int i = 0; i < MAX_TEXTURES; i++) {
             if(i < texturesCount)
-                color += texture2D(textureSamplers[i], vec2(vTextureCoord.s, vTextureCoord.t));
+                color += vec3(texture2D(textureSamplers[i], vec2(vTextureCoord.s, vTextureCoord.t)));
         }
         return color;
     } else {
-        return color + vec4(uColor, 1.0);
+        return color + uColor;
     }
 }
 
@@ -115,13 +117,13 @@ float getFogFactor(float uFogMinDistance, float uFogMaxDistance, vec4 vEye, vec4
     return factor;
 }
 
-vec4 getFogColor(vec4 color, vec3 uFogColor, float fogFactor) {
-    return color * fogFactor + vec4(uFogColor, 1.0) * (1.0 - fogFactor);
+vec3 getFogColor(vec3 color, vec3 uFogColor, float fogFactor) {
+    return color * fogFactor + uFogColor * (1.0 - fogFactor);
 }
 
 void main(void) {
 
-    vec4 lightFactor = vec4(0.0, 0.0, 0.0, 1.0);
+    vec3 lightFactor = vec3(0.0, 0.0, 0.0);
 
     if(uUseLight) {
         for(int i = 0; i < MAX_LIGHTS; i++) {
@@ -135,17 +137,17 @@ void main(void) {
                 lightFactor += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
         }
     } else {
-        lightFactor = vec4(1.0, 1.0, 1.0, 1.0);
+        lightFactor = vec3(1.0, 1.0, 1.0);
     }
 
-    vec4 color = getColor(texturesCount, textureSamplers, uColor);
+    vec3 color = getColor(texturesCount, textureSamplers, uColor);
 
     if (uUseFog) {
         float fogFactor = getFogFactor(uFogMinDistance, uFogMaxDistance, vEye, vPosition);
         color = getFogColor(color, uFogColor, fogFactor);
     }
 
-    gl_FragColor = lightFactor * color;
+    gl_FragColor = vec4(lightFactor * color, uAlpha);
 }
 </script>
 

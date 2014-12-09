@@ -115,6 +115,7 @@ $(document).ready(function() {
     net.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     net.transform(mat4.translate, vec3.fromValues(0.0, -1.25, 0.0));
     net.transform(mat4.scale, vec3.fromValues(7.0, 1.0, 1.0));
+    net.setAlpha(0.2);
     scene.addDrawable(net);
     scene.addRenderable(net);
 
@@ -299,6 +300,7 @@ function Drawable(PrimitiveDefinition) {
     };
     this.useLight = true;
     this.color = null;
+    this.alpha = 1.0;
     this.textures = [];
     this.modelMatrix = mat4.create();
     this.textureMatrix = mat3.create();
@@ -333,6 +335,9 @@ Drawable.prototype = {
     },
     setColor: function(color) {
         this.color = color;
+    },
+    setAlpha: function(alpha) {
+        this.alpha = alpha;
     },
     setLight: function(useLight) {
         this.useLight = useLight;
@@ -378,6 +383,7 @@ Drawable.prototype = {
         window.gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, window.gl.FLOAT, false, 0, 0);
 
         window.gl.uniform1i(shaderManager.getUniform("uUseLight"), this.useLight);
+        window.gl.uniform1f(shaderManager.getUniform("uAlpha"), this.alpha);
 
         if (this.color) {
             window.gl.uniform3fv(shaderManager.getUniform("uColor"), this.color);
@@ -925,7 +931,8 @@ Scene.prototype = {
         this.textureManager.render(this.render, this);
 
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.disable(window.gl.DEPTH_TEST);
+        window.gl.enable(window.gl.BLEND);
         window.gl.viewport(0, 0, window.gl.viewportWidth, window.gl.viewportHeight);
         window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
 
@@ -942,7 +949,9 @@ Scene.prototype = {
     },
     render: function() {
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.disable(window.gl.DEPTH_TEST);
+        window.gl.enable(window.gl.BLEND);
+        window.gl.blendFunc(window.gl.SRC_ALPHA, window.gl.ONE);
         window.gl.viewport(0, 0, this.textureManager.renderFramebuffer.width, this.textureManager.renderFramebuffer.height);
         window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
 
@@ -1048,6 +1057,7 @@ ShaderManager.prototype = {
         this.bindUniform("uNormalMatrix");
         this.bindUniform("textureSamplers");
         this.bindUniform("uColor");
+        this.bindUniform("uAlpha");
         this.bindUniform("uUseLight");
         this.bindUniform("texturesCount");
         this.bindUniform("directionalLightsCount");

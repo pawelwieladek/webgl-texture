@@ -82,6 +82,7 @@ ShaderManager.prototype = {
         this.bindUniform("uNormalMatrix");
         this.bindUniform("textureSamplers");
         this.bindUniform("uColor");
+        this.bindUniform("uAlpha");
         this.bindUniform("uUseLight");
         this.bindUniform("texturesCount");
         this.bindUniform("directionalLightsCount");

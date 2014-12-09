@@ -114,6 +114,7 @@ $(document).ready(function() {
     net.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     net.transform(mat4.translate, vec3.fromValues(0.0, -1.25, 0.0));
     net.transform(mat4.scale, vec3.fromValues(7.0, 1.0, 1.0));
+    net.setAlpha(0.2);
     scene.addDrawable(net);
     scene.addRenderable(net);
 

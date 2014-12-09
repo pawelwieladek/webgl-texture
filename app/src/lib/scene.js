@@ -105,7 +105,8 @@ Scene.prototype = {
         this.textureManager.render(this.render, this);
 
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.disable(window.gl.DEPTH_TEST);
+        window.gl.enable(window.gl.BLEND);
         window.gl.viewport(0, 0, window.gl.viewportWidth, window.gl.viewportHeight);
         window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
 
@@ -122,7 +123,9 @@ Scene.prototype = {
     },
     render: function() {
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
-        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.disable(window.gl.DEPTH_TEST);
+        window.gl.enable(window.gl.BLEND);
+        window.gl.blendFunc(window.gl.SRC_ALPHA, window.gl.ONE);
         window.gl.viewport(0, 0, this.textureManager.renderFramebuffer.width, this.textureManager.renderFramebuffer.height);
         window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
 
