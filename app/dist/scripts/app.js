@@ -22,6 +22,8 @@ $(document).ready(function() {
     ]);
 
     scene.getCamera().serBoundaries(vec3.fromValues(-20.0, -4.0, -20.0), vec3.fromValues(20.0, 4.0, 20.0));
+    scene.getTelebim().setPosition(vec3.fromValues(12.0, 0.0, 12.0));
+    scene.getTelebim().setYawAngle(55 * Math.PI / 180);
 
     scene.bindKey(Scene.Keyboard.Keys.UpArrow, scene.getCamera(), scene.getCamera().moveForward);
     scene.bindKey(Scene.Keyboard.Keys.DownArrow, scene.getCamera(), scene.getCamera().moveBackward);
@@ -48,15 +50,16 @@ $(document).ready(function() {
     wall1.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall1);
+    scene.addRenderable(wall1);
 
     var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wallPanel.addTexture(window.gl.TEXTURE0, "poland");
+    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
     wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
     wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     wallPanel.enableTextureScaling();
-    scene.bindKey(Scene.Keyboard.Keys.C, this, function() { wallPanel.shrinkTexture(); });
-    scene.bindKey(Scene.Keyboard.Keys.V, this, function() { wallPanel.enlargeTexture(); });
+    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
+    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
     scene.addDrawable(wallPanel);
 
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
@@ -65,12 +68,14 @@ $(document).ready(function() {
     wall3.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall3.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall3);
+    scene.addRenderable(wall3);
 
     var wall4 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall4.addTexture(window.gl.TEXTURE0, "crowd");
     wall4.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall4.transform(mat4.translate, vec3.fromValues(0.0, 0.0, 1.0));
     scene.addDrawable(wall4);
+    scene.addRenderable(wall4);
 
     var floor = new Scene.Drawable(Scene.Primitives.Rectangle);
     floor.addTexture(window.gl.TEXTURE0, "floor_1");
@@ -79,6 +84,7 @@ $(document).ready(function() {
     floor.transform(mat4.rotateX, 90 * Math.PI / 180);
     floor.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
     scene.addDrawable(floor);
+    scene.addRenderable(floor);
     scene.bindKey(Scene.Keyboard.Keys.Z, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_1"); });
     scene.bindKey(Scene.Keyboard.Keys.X, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_2"); });
 
@@ -88,24 +94,28 @@ $(document).ready(function() {
     ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
     ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
     scene.addDrawable(ceiling);
+    scene.addRenderable(ceiling);
 
     var pole1 = new Scene.Drawable(Scene.Primitives.Cube);
     pole1.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     pole1.transform(mat4.translate, vec3.fromValues(7.0, -2.0, 0.0));
     pole1.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
     scene.addDrawable(pole1);
+    scene.addRenderable(pole1);
 
     var pole2 = new Scene.Drawable(Scene.Primitives.Cube);
     pole2.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     pole2.transform(mat4.translate, vec3.fromValues(-7.0, -2.0, 0.0));
     pole2.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
     scene.addDrawable(pole2);
+    scene.addRenderable(pole2);
 
     var net = new Scene.Drawable(Scene.Primitives.Rectangle);
     net.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     net.transform(mat4.translate, vec3.fromValues(0.0, -1.25, 0.0));
     net.transform(mat4.scale, vec3.fromValues(7.0, 1.0, 1.0));
     scene.addDrawable(net);
+    scene.addRenderable(net);
 
     scene.addPointLight();
 
@@ -135,6 +145,9 @@ function Camera() {
 Camera.prototype = {
     setPosition: function(position) {
         this.position = position;
+    },
+    setYawAngle: function(yawAngle) {
+        this.yawAngle = yawAngle;
     },
     serBoundaries: function(lower, upper) {
         this.boundaries = {
@@ -253,7 +266,7 @@ function Drawable(PrimitiveDefinition) {
     this.textures = [];
     this.modelMatrix = mat4.create();
     this.textureMatrix = mat3.create();
-    this.textureScale = 2.0;
+    this.textureScale = 1.0;
     this.textureScaleStep = 0.02;
     this.textureScalingEnabled = false;
 
@@ -302,10 +315,14 @@ Drawable.prototype = {
         transformation(this.modelMatrix, this.modelMatrix, value);
     },
     shrinkTexture: function() {
-        this.textureScale += this.textureScaleStep;
+        if(this.textureScale + this.textureScaleStep <= 1.0) {
+            this.textureScale += this.textureScaleStep;
+        }
     },
     enlargeTexture: function() {
-        this.textureScale -= this.textureScaleStep;
+        if(this.textureScale - this.textureScaleStep >= 0.0) {
+            this.textureScale -= this.textureScaleStep;
+        }
     },
     enableTextureScaling: function() {
         this.textureScalingEnabled = true;
@@ -363,7 +380,7 @@ module.exports = Drawable;
 var vec3 = require("./../../../bower_components/gl-matrix/dist/gl-matrix.js").vec3;
 
 function EffectsManager() {
-    this.useFog = true;
+    this.useFog = false;
     this.fogColor = vec3.fromValues(1.0, 1.0, 1.0);
     this.fogMinDistance = 5.0;
     this.fogMaxDistance = 100.0;
@@ -715,14 +732,6 @@ var Drawable = require("./drawable");
 
 function Scene(canvas) {
     this.canvas = canvas;
-    this.camera = new Camera();
-    this.keyboard = new Keyboard();
-    this.shaderManager = new ShaderManager();
-    this.lightManager = new LightManager();
-    this.textureManager = new TextureManager();
-    this.effectsManager = new EffectsManager();
-    this.projectionMatrix = mat4.create();
-    this.drawables = [];
 
     window.requestAnimFrame = (function() {
         return window.requestAnimationFrame ||
@@ -748,6 +757,18 @@ function Scene(canvas) {
         alert("Could not initialise WebGL");
     }
 
+    this.camera = new Camera();
+    this.telebim = new Camera();
+    this.keyboard = new Keyboard();
+    this.shaderManager = new ShaderManager();
+    this.lightManager = new LightManager();
+    this.textureManager = new TextureManager();
+    this.effectsManager = new EffectsManager();
+
+    this.projectionMatrix = mat4.create();
+    this.drawables = [];
+    this.renderables = [];
+
     this.shaderManager.init();
 }
 
@@ -763,6 +784,9 @@ Scene.prototype = {
     addDrawable: function(drawable) {
         this.drawables.push(drawable);
     },
+    addRenderable: function(renderable) {
+        this.renderables.push(renderable);
+    },
     addPointLight: function(light) {
         this.lightManager.addPointLight(light);
     },
@@ -775,6 +799,9 @@ Scene.prototype = {
     getCamera: function() {
         return this.camera;
     },
+    getTelebim: function() {
+        return this.telebim;
+    },
     getTextureManager: function() {
         return this.textureManager;
     },
@@ -785,6 +812,8 @@ Scene.prototype = {
         this.keyboard.bind(keyCode, handler, action);
     },
     draw: function() {
+        this.textureManager.render(this.render, this);
+
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
         window.gl.enable(window.gl.DEPTH_TEST);
         window.gl.viewport(0, 0, window.gl.viewportWidth, window.gl.viewportHeight);
@@ -796,6 +825,18 @@ Scene.prototype = {
         this.effectsManager.draw(this.shaderManager);
         this.drawables.forEach(function(drawable) {
             drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
+        }.bind(this));
+    },
+    render: function() {
+        window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.viewport(0, 0, this.textureManager.renderFramebuffer.width, this.textureManager.renderFramebuffer.height);
+        window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
+
+        this.lightManager.draw(this.shaderManager);
+        this.effectsManager.draw(this.shaderManager);
+        this.renderables.forEach(function(renderable) {
+            renderable.draw(this.shaderManager, this.textureManager, this.telebim.getViewMatrix(), this.getProjectionMatrix());
         }.bind(this));
     },
     run: function() {
@@ -971,6 +1012,36 @@ Texture.prototype = {
 function TextureManager() {
     this.filter = 0;
     this.textures = {};
+    this.renderFramebuffer = null;
+    this.renderTexture = null;
+
+    var initFrameBuffer = function() {
+        this.renderFramebuffer = window.gl.createFramebuffer();
+        window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, this.renderFramebuffer);
+        this.renderFramebuffer.width = 2048;
+        this.renderFramebuffer.height = 512;
+
+        this.renderTexture = window.gl.createTexture();
+        window.gl.bindTexture(window.gl.TEXTURE_2D, this.renderTexture);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MAG_FILTER, window.gl.LINEAR);
+        window.gl.texParameteri(window.gl.TEXTURE_2D, window.gl.TEXTURE_MIN_FILTER, window.gl.LINEAR_MIPMAP_NEAREST);
+        window.gl.generateMipmap(window.gl.TEXTURE_2D);
+
+        window.gl.texImage2D(window.gl.TEXTURE_2D, 0, window.gl.RGBA, this.renderFramebuffer.width, this.renderFramebuffer.height, 0, window.gl.RGBA, window.gl.UNSIGNED_BYTE, null);
+
+        var renderBuffer = window.gl.createRenderbuffer();
+        window.gl.bindRenderbuffer(window.gl.RENDERBUFFER, renderBuffer);
+        window.gl.renderbufferStorage(window.gl.RENDERBUFFER, window.gl.DEPTH_COMPONENT16, this.renderFramebuffer.width, this.renderFramebuffer.height);
+
+        window.gl.framebufferTexture2D(window.gl.FRAMEBUFFER, window.gl.COLOR_ATTACHMENT0, window.gl.TEXTURE_2D, this.renderTexture, 0);
+        window.gl.framebufferRenderbuffer(window.gl.FRAMEBUFFER, window.gl.DEPTH_ATTACHMENT, window.gl.RENDERBUFFER, renderBuffer);
+
+        window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+        window.gl.bindRenderbuffer(window.gl.RENDERBUFFER, null);
+        window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, null);
+    }.bind(this);
+
+    initFrameBuffer();
 }
 
 TextureManager.prototype = {
@@ -978,7 +1049,11 @@ TextureManager.prototype = {
         this.textures[name] = new Texture(src);
     },
     getTexture: function(name) {
-        return this.textures[name].getVersion(this.filter);
+        if(name === "render_texture") {
+            return this.renderTexture;
+        } else {
+            return this.textures[name].getVersion(this.filter);
+        }
     },
     setFilter0: function() {
         this.filter = 0;
@@ -993,6 +1068,17 @@ TextureManager.prototype = {
         textures.forEach(function(textureInfo) {
             this.addTexture(textureInfo[0], textureInfo[1]);
         }.bind(this));
+    },
+    render: function(drawFunction, thisObject) {
+        window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, this.renderFramebuffer);
+
+        drawFunction.call(thisObject);
+
+        window.gl.bindTexture(window.gl.TEXTURE_2D, this.renderTexture);
+        window.gl.generateMipmap(window.gl.TEXTURE_2D);
+        window.gl.bindTexture(window.gl.TEXTURE_2D, null);
+
+        window.gl.bindFramebuffer(window.gl.FRAMEBUFFER, null);
     }
 };
 

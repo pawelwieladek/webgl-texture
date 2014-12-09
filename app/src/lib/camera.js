@@ -22,6 +22,9 @@ Camera.prototype = {
     setPosition: function(position) {
         this.position = position;
     },
+    setYawAngle: function(yawAngle) {
+        this.yawAngle = yawAngle;
+    },
     serBoundaries: function(lower, upper) {
         this.boundaries = {
             lower: lower,

@@ -1,7 +1,7 @@
 var vec3 = require("gl-matrix").vec3;
 
 function EffectsManager() {
-    this.useFog = true;
+    this.useFog = false;
     this.fogColor = vec3.fromValues(1.0, 1.0, 1.0);
     this.fogMinDistance = 5.0;
     this.fogMaxDistance = 100.0;

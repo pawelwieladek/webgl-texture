@@ -21,6 +21,8 @@ $(document).ready(function() {
     ]);
 
     scene.getCamera().serBoundaries(vec3.fromValues(-20.0, -4.0, -20.0), vec3.fromValues(20.0, 4.0, 20.0));
+    scene.getTelebim().setPosition(vec3.fromValues(12.0, 0.0, 12.0));
+    scene.getTelebim().setYawAngle(55 * Math.PI / 180);
 
     scene.bindKey(Scene.Keyboard.Keys.UpArrow, scene.getCamera(), scene.getCamera().moveForward);
     scene.bindKey(Scene.Keyboard.Keys.DownArrow, scene.getCamera(), scene.getCamera().moveBackward);
@@ -47,15 +49,16 @@ $(document).ready(function() {
     wall1.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall1.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall1);
+    scene.addRenderable(wall1);
 
     var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wallPanel.addTexture(window.gl.TEXTURE0, "poland");
+    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
     wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
     wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     wallPanel.enableTextureScaling();
-    scene.bindKey(Scene.Keyboard.Keys.C, this, function() { wallPanel.shrinkTexture(); });
-    scene.bindKey(Scene.Keyboard.Keys.V, this, function() { wallPanel.enlargeTexture(); });
+    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
+    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
     scene.addDrawable(wallPanel);
 
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
@@ -64,12 +67,14 @@ $(document).ready(function() {
     wall3.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall3.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
     scene.addDrawable(wall3);
+    scene.addRenderable(wall3);
 
     var wall4 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall4.addTexture(window.gl.TEXTURE0, "crowd");
     wall4.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
     wall4.transform(mat4.translate, vec3.fromValues(0.0, 0.0, 1.0));
     scene.addDrawable(wall4);
+    scene.addRenderable(wall4);
 
     var floor = new Scene.Drawable(Scene.Primitives.Rectangle);
     floor.addTexture(window.gl.TEXTURE0, "floor_1");
@@ -78,6 +83,7 @@ $(document).ready(function() {
     floor.transform(mat4.rotateX, 90 * Math.PI / 180);
     floor.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
     scene.addDrawable(floor);
+    scene.addRenderable(floor);
     scene.bindKey(Scene.Keyboard.Keys.Z, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_1"); });
     scene.bindKey(Scene.Keyboard.Keys.X, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_2"); });
 
@@ -87,24 +93,28 @@ $(document).ready(function() {
     ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
     ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
     scene.addDrawable(ceiling);
+    scene.addRenderable(ceiling);
 
     var pole1 = new Scene.Drawable(Scene.Primitives.Cube);
     pole1.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     pole1.transform(mat4.translate, vec3.fromValues(7.0, -2.0, 0.0));
     pole1.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
     scene.addDrawable(pole1);
+    scene.addRenderable(pole1);
 
     var pole2 = new Scene.Drawable(Scene.Primitives.Cube);
     pole2.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     pole2.transform(mat4.translate, vec3.fromValues(-7.0, -2.0, 0.0));
     pole2.transform(mat4.scale, vec3.fromValues(0.1, 2.0, 0.1));
     scene.addDrawable(pole2);
+    scene.addRenderable(pole2);
 
     var net = new Scene.Drawable(Scene.Primitives.Rectangle);
     net.setColor(vec3.fromValues(1.0, 1.0, 1.0));
     net.transform(mat4.translate, vec3.fromValues(0.0, -1.25, 0.0));
     net.transform(mat4.scale, vec3.fromValues(7.0, 1.0, 1.0));
     scene.addDrawable(net);
+    scene.addRenderable(net);
 
     scene.addPointLight();
 

@@ -27,7 +27,7 @@ function Drawable(PrimitiveDefinition) {
     this.textures = [];
     this.modelMatrix = mat4.create();
     this.textureMatrix = mat3.create();
-    this.textureScale = 2.0;
+    this.textureScale = 1.0;
     this.textureScaleStep = 0.02;
     this.textureScalingEnabled = false;
 
@@ -76,10 +76,14 @@ Drawable.prototype = {
         transformation(this.modelMatrix, this.modelMatrix, value);
     },
     shrinkTexture: function() {
-        this.textureScale += this.textureScaleStep;
+        if(this.textureScale + this.textureScaleStep <= 1.0) {
+            this.textureScale += this.textureScaleStep;
+        }
     },
     enlargeTexture: function() {
-        this.textureScale -= this.textureScaleStep;
+        if(this.textureScale - this.textureScaleStep >= 0.0) {
+            this.textureScale -= this.textureScaleStep;
+        }
     },
     enableTextureScaling: function() {
         this.textureScalingEnabled = true;

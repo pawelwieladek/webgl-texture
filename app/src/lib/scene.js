@@ -11,14 +11,6 @@ var Drawable = require("./drawable");
 
 function Scene(canvas) {
     this.canvas = canvas;
-    this.camera = new Camera();
-    this.keyboard = new Keyboard();
-    this.shaderManager = new ShaderManager();
-    this.lightManager = new LightManager();
-    this.textureManager = new TextureManager();
-    this.effectsManager = new EffectsManager();
-    this.projectionMatrix = mat4.create();
-    this.drawables = [];
 
     window.requestAnimFrame = (function() {
         return window.requestAnimationFrame ||
@@ -44,6 +36,18 @@ function Scene(canvas) {
         alert("Could not initialise WebGL");
     }
 
+    this.camera = new Camera();
+    this.telebim = new Camera();
+    this.keyboard = new Keyboard();
+    this.shaderManager = new ShaderManager();
+    this.lightManager = new LightManager();
+    this.textureManager = new TextureManager();
+    this.effectsManager = new EffectsManager();
+
+    this.projectionMatrix = mat4.create();
+    this.drawables = [];
+    this.renderables = [];
+
     this.shaderManager.init();
 }
 
@@ -59,6 +63,9 @@ Scene.prototype = {
     addDrawable: function(drawable) {
         this.drawables.push(drawable);
     },
+    addRenderable: function(renderable) {
+        this.renderables.push(renderable);
+    },
     addPointLight: function(light) {
         this.lightManager.addPointLight(light);
     },
@@ -71,6 +78,9 @@ Scene.prototype = {
     getCamera: function() {
         return this.camera;
     },
+    getTelebim: function() {
+        return this.telebim;
+    },
     getTextureManager: function() {
         return this.textureManager;
     },
@@ -81,6 +91,8 @@ Scene.prototype = {
         this.keyboard.bind(keyCode, handler, action);
     },
     draw: function() {
+        this.textureManager.render(this.render, this);
+
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
         window.gl.enable(window.gl.DEPTH_TEST);
         window.gl.viewport(0, 0, window.gl.viewportWidth, window.gl.viewportHeight);
@@ -92,6 +104,18 @@ Scene.prototype = {
         this.effectsManager.draw(this.shaderManager);
         this.drawables.forEach(function(drawable) {
             drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
+        }.bind(this));
+    },
+    render: function() {
+        window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        window.gl.enable(window.gl.DEPTH_TEST);
+        window.gl.viewport(0, 0, this.textureManager.renderFramebuffer.width, this.textureManager.renderFramebuffer.height);
+        window.gl.clear(window.gl.COLOR_BUFFER_BIT | window.gl.DEPTH_BUFFER_BIT);
+
+        this.lightManager.draw(this.shaderManager);
+        this.effectsManager.draw(this.shaderManager);
+        this.renderables.forEach(function(renderable) {
+            renderable.draw(this.shaderManager, this.textureManager, this.telebim.getViewMatrix(), this.getProjectionMatrix());
         }.bind(this));
     },
     run: function() {
