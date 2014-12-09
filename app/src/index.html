@@ -43,6 +43,8 @@ struct SpotLight {
     float range;
 };
 
+uniform bool uUseLight;
+
 uniform int directionalLightsCount;
 uniform int pointLightsCount;
 uniform int spotLightsCount;
@@ -83,9 +85,8 @@ vec4 getSpotLightColor(const SpotLight spotLight, vec3 position, vec3 normal) {
 
     float spotEffect = smoothstep(spotLight.cosOuterAngle, spotLight.cosInnerAngle, dot(L, -spotLight.direction));
     float attenuation = smoothstep(spotLight.range, 0.0, distance);
-    float diffuse = max(dot(normal, L), 0.0);
 
-    return vec4(diffuse * spotLight.diffuseColor * spotEffect * attenuation, 1.0);
+    return vec4(spotLight.diffuseColor * spotEffect * attenuation, 1.0);
 }
 
 vec4 getColor(int texturesCount, sampler2D textureSamplers[10], vec3 uColor) {
@@ -122,15 +123,19 @@ void main(void) {
 
     vec4 lightFactor = vec4(0.0, 0.0, 0.0, 1.0);
 
-    for(int i = 0; i < MAX_LIGHTS; i++) {
-        if(i < directionalLightsCount)
-            lightFactor += getDirectionalLightColor(directionalLights[i], vNormal);
+    if(uUseLight) {
+        for(int i = 0; i < MAX_LIGHTS; i++) {
+            if(i < directionalLightsCount)
+                lightFactor += getDirectionalLightColor(directionalLights[i], vNormal);
 
-        if(i < pointLightsCount)
-            lightFactor += getPointLightColor(pointLights[i], vPosition.xyz, vNormal);
+            if(i < pointLightsCount)
+                lightFactor += getPointLightColor(pointLights[i], vPosition.xyz, vNormal);
 
-        if(i < spotLightsCount)
-            lightFactor += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
+            if(i < spotLightsCount)
+                lightFactor += getSpotLightColor(spotLights[i], vPosition.xyz, vNormal);
+        }
+    } else {
+        lightFactor = vec4(1.0, 1.0, 1.0, 1.0);
     }
 
     vec4 color = getColor(texturesCount, textureSamplers, uColor);

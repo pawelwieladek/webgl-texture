@@ -52,16 +52,6 @@ $(document).ready(function() {
     scene.addDrawable(wall1);
     scene.addRenderable(wall1);
 
-    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
-    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
-    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
-    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
-    wallPanel.enableTextureScaling();
-    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
-    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
-    scene.addDrawable(wallPanel);
-
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall3.addTexture(window.gl.TEXTURE0, "crowd");
     wall3.transform(mat4.rotateY, 90 * Math.PI / 180);
@@ -77,6 +67,17 @@ $(document).ready(function() {
     scene.addDrawable(wall4);
     scene.addRenderable(wall4);
 
+    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
+    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
+    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
+    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    wallPanel.enableTextureScaling();
+    wallPanel.setLight(false);
+    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
+    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
+    scene.addDrawable(wallPanel);
+
     var floor = new Scene.Drawable(Scene.Primitives.Rectangle);
     floor.addTexture(window.gl.TEXTURE0, "floor_1");
     floor.addTexture(window.gl.TEXTURE1, "signs");
@@ -89,7 +90,7 @@ $(document).ready(function() {
     scene.bindKey(Scene.Keyboard.Keys.X, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_2"); });
 
     var ceiling = new Scene.Drawable(Scene.Primitives.Rectangle);
-    ceiling.setColor(vec3.fromValues(0.7, 0.7, 0.7));
+    ceiling.setColor(vec3.fromValues(0.2, 0.2, 0.2));
     ceiling.transform(mat4.translate, vec3.fromValues(0.0, 4.0, 0.0));
     ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
     ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
@@ -117,7 +118,41 @@ $(document).ready(function() {
     scene.addDrawable(net);
     scene.addRenderable(net);
 
-    scene.addPointLight();
+    var pointLight = new Scene.LightManager.PointLight({
+        position: vec3.fromValues(0.0, 3.0, 0.0),
+        diffuseColor: vec3.fromValues(0.0, 0.0, 0.0),
+        ambientColor: vec3.fromValues(0.5, 0.5, 0.5)
+    });
+
+    scene.addPointLight(pointLight);
+
+    var spotLightCount = 4;
+
+    for (var i = 0; i < spotLightCount; i++) {
+        var diffuse = 0.3;
+        var direction = vec3.create();
+        var directionBase = vec3.fromValues(-0.5, -1.0, 0.0);
+        var rotationMatrix = mat4.create();
+        var angle = (360 * i / spotLightCount) * (Math.PI / 180);
+        mat4.rotateY(rotationMatrix, rotationMatrix, angle);
+        vec3.transformMat4(direction, directionBase, rotationMatrix);
+        var spotLight = new Scene.LightManager.SpotLight({
+            position: vec3.fromValues(0.0, 4.0, 0.0),
+            diffuseColor: vec3.fromValues(diffuse, diffuse, diffuse),
+            direction: direction,
+            outerAngle: 45.0,
+            innerAngle: 40.0,
+            range: 20.0
+        });
+
+        scene.addCallable(function() {
+            var rotationMatrix = mat4.create();
+            mat4.rotateY(rotationMatrix, rotationMatrix, Math.PI / 180);
+            vec3.transformMat4(this.direction, this.direction, rotationMatrix);
+        }, spotLight);
+
+        scene.addSpotLight(spotLight);
+    }
 
     scene.run();
 });
@@ -262,6 +297,7 @@ function Drawable(PrimitiveDefinition) {
             numItems: this.primitive.index.numItems
         }
     };
+    this.useLight = true;
     this.color = null;
     this.textures = [];
     this.modelMatrix = mat4.create();
@@ -297,6 +333,9 @@ Drawable.prototype = {
     },
     setColor: function(color) {
         this.color = color;
+    },
+    setLight: function(useLight) {
+        this.useLight = useLight;
     },
     getNormalMatrix: function() {
         var normalMatrix = mat3.create();
@@ -337,6 +376,8 @@ Drawable.prototype = {
 
         window.gl.bindBuffer(window.gl.ARRAY_BUFFER, this.buffers.texture.buffer);
         window.gl.vertexAttribPointer(shaderManager.getAttribute("aTextureCoord"), this.buffers.texture.itemSize, window.gl.FLOAT, false, 0, 0);
+
+        window.gl.uniform1i(shaderManager.getUniform("uUseLight"), this.useLight);
 
         if (this.color) {
             window.gl.uniform3fv(shaderManager.getUniform("uColor"), this.color);
@@ -499,44 +540,102 @@ function LightManager() {
 }
 
 LightManager.prototype = {
-    addPointLight: function(options) {
-        var index = this.pointLights.length;
-        this.pointLights.push(new PointLight(index, options));
+    addPointLight: function(pointLight) {
+        this.pointLights.push(pointLight);
+    },
+    addSpotLight: function(spotLight) {
+        this.spotLights.push(spotLight);
     },
     draw: function(shaderManager) {
         window.gl.uniform1i(shaderManager.getUniform("directionalLightsCount"), this.directionalLights.length);
         window.gl.uniform1i(shaderManager.getUniform("pointLightsCount"), this.pointLights.length);
         window.gl.uniform1i(shaderManager.getUniform("spotLightsCount"), this.spotLights.length);
 
+        var pointLightIndex = 0;
         this.pointLights.forEach(function(pointLight) {
-            pointLight.draw(shaderManager);
+            pointLight.draw(shaderManager, pointLightIndex++);
+        });
+
+        var spotLightIndex = 0;
+        this.spotLights.forEach(function(spotLight) {
+            spotLight.draw(shaderManager, spotLightIndex++);
         });
     }
 };
 
-function PointLight(index, options) {
+function PointLight(options) {
     options = options || {};
-    this.index = index;
-    this.position = options.position || vec3.fromValues(0.0, 0.0, 1.0);
-    this.diffuseColor = options.diffuseColor || vec3.fromValues(0.1, 0.1, 0.1);
-    this.ambientColor = options.ambientColor || vec3.fromValues(0.9, 0.9, 0.9);
+    this.position = options.position || vec3.fromValues(0.0, 0.0, 0.0);
+    this.diffuseColor = options.diffuseColor || vec3.fromValues(0.0, 0.0, 0.0);
+    this.ambientColor = options.ambientColor || vec3.fromValues(0.0, 0.0, 0.0);
     this.constantAttenuation = options.constantAttenuation || 1;
     this.linearAttenuation = options.linearAttenuation || 0;
     this.exponentAttenuation = options.exponentAttenuation || 0;
 }
 
 PointLight.prototype = {
-    draw: function(shaderManager) {
-        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].position"), this.position);
-        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].diffuseColor"), this.diffuseColor);
-        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + this.index + "].ambientColor"), this.ambientColor);
-        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].constantAttenuation"), this.constantAttenuation);
-        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].linearAttenuation"), this.linearAttenuation);
-        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + this.index + "].exponentAttenuation"), this.exponentAttenuation);
+    setPosition: function(position) {
+        this.position = position;
+    },
+    setDiffuseColor: function(diffuseColor) {
+        this.diffuseColor = diffuseColor;
+    },
+    draw: function(shaderManager, index) {
+        shaderManager.bindUniform("pointLights[" + index + "].position");
+        shaderManager.bindUniform("pointLights[" + index + "].diffuseColor");
+        shaderManager.bindUniform("pointLights[" + index + "].ambientColor");
+        shaderManager.bindUniform("pointLights[" + index + "].constantAttenuation");
+        shaderManager.bindUniform("pointLights[" + index + "].linearAttenuation");
+        shaderManager.bindUniform("pointLights[" + index + "].exponentAttenuation");
+        
+        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + index + "].position"), this.position);
+        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + index + "].diffuseColor"), this.diffuseColor);
+        window.gl.uniform3fv(shaderManager.getUniform("pointLights[" + index + "].ambientColor"), this.ambientColor);
+        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + index + "].constantAttenuation"), this.constantAttenuation);
+        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + index + "].linearAttenuation"), this.linearAttenuation);
+        window.gl.uniform1f(shaderManager.getUniform("pointLights[" + index + "].exponentAttenuation"), this.exponentAttenuation);
+    }
+};
+
+function SpotLight(options) {
+    options = options || {};
+    this.position = options.position || vec3.fromValues(0.0, 0.0, 0.0);
+    this.diffuseColor = options.diffuseColor || vec3.fromValues(0.0, 0.0, 0.0);
+    this.direction = options.direction || vec3.fromValues(0.0, 0.0, 0.0);
+    this.outerAngle = options.outerAngle || 10.0;
+    this.innerAngle = options.innerAngle || 5.0;
+    this.range = options.range || 50.0;
+}
+
+SpotLight.prototype = {
+    setPosition: function(position) {
+        this.position = position;
+    },
+    setDiffuseColor: function(diffuseColor) {
+        this.diffuseColor = diffuseColor;
+    },
+    setDirection: function(direction) {
+        this.direction = direction;
+    },
+    draw: function(shaderManager, index) {
+        shaderManager.bindUniform("spotLights[" + index + "].position");
+        shaderManager.bindUniform("spotLights[" + index + "].diffuseColor");
+        shaderManager.bindUniform("spotLights[" + index + "].direction");
+        shaderManager.bindUniform("spotLights[" + index + "].cosOuterAngle");
+        shaderManager.bindUniform("spotLights[" + index + "].cosInnerAngle");
+        shaderManager.bindUniform("spotLights[" + index + "].range");
+        
+        window.gl.uniform3fv(shaderManager.getUniform("spotLights[" + index + "].position"), this.position);
+        window.gl.uniform3fv(shaderManager.getUniform("spotLights[" + index + "].diffuseColor"), this.diffuseColor);
+        window.gl.uniform3fv(shaderManager.getUniform("spotLights[" + index + "].direction"), this.direction);
+        window.gl.uniform1f(shaderManager.getUniform("spotLights[" + index + "].cosOuterAngle"), Math.cos(this.outerAngle * Math.PI / 180));
+        window.gl.uniform1f(shaderManager.getUniform("spotLights[" + index + "].cosInnerAngle"), Math.cos(this.innerAngle * Math.PI / 180));
+        window.gl.uniform1f(shaderManager.getUniform("spotLights[" + index + "].range"), this.range);
     }
 };
 
 LightManager.PointLight = PointLight;
+LightManager.SpotLight = SpotLight;
 
 module.exports = LightManager;
 },{"./../../../bower_components/gl-matrix/dist/gl-matrix.js":11}],7:[function(require,module,exports){
@@ -768,6 +867,7 @@ function Scene(canvas) {
     this.projectionMatrix = mat4.create();
     this.drawables = [];
     this.renderables = [];
+    this.callables = [];
 
     this.shaderManager.init();
 }
@@ -775,6 +875,7 @@ function Scene(canvas) {
 Scene.Drawable = Drawable;
 Scene.Primitives = Primitives;
 Scene.Keyboard = Keyboard;
+Scene.LightManager = LightManager;
 
 Scene.prototype = {
     getProjectionMatrix: function() {
@@ -787,8 +888,17 @@ Scene.prototype = {
     addRenderable: function(renderable) {
         this.renderables.push(renderable);
     },
+    addCallable: function(func, context) {
+        this.callables.push({
+            func: func,
+            context: context
+        });
+    },
     addPointLight: function(light) {
         this.lightManager.addPointLight(light);
+    },
+    addSpotLight: function(light) {
+        this.lightManager.addSpotLight(light);
     },
     loadTextures: function(textureList) {
         this.textureManager.init(textureList);
@@ -826,6 +936,9 @@ Scene.prototype = {
         this.drawables.forEach(function(drawable) {
             drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
         }.bind(this));
+        this.callables.forEach(function(callable) {
+            callable.func.call(callable.context);
+        });
     },
     render: function() {
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -935,20 +1048,16 @@ ShaderManager.prototype = {
         this.bindUniform("uNormalMatrix");
         this.bindUniform("textureSamplers");
         this.bindUniform("uColor");
+        this.bindUniform("uUseLight");
         this.bindUniform("texturesCount");
         this.bindUniform("directionalLightsCount");
+        this.bindUniform("spotLightsCount");
         this.bindUniform("pointLightsCount");
         this.bindUniform("spotLightsCount");
         this.bindUniform("uUseFog");
         this.bindUniform("uFogColor");
         this.bindUniform("uFogMinDistance");
         this.bindUniform("uFogMaxDistance");
-        this.bindUniform("pointLights[0].position");
-        this.bindUniform("pointLights[0].diffuseColor");
-        this.bindUniform("pointLights[0].ambientColor");
-        this.bindUniform("pointLights[0].constantAttenuation");
-        this.bindUniform("pointLights[0].linearAttenuation");
-        this.bindUniform("pointLights[0].exponentAttenuation");
     },
     init: function() {
         this.createShaders();

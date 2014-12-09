@@ -47,6 +47,7 @@ function Scene(canvas) {
     this.projectionMatrix = mat4.create();
     this.drawables = [];
     this.renderables = [];
+    this.callables = [];
 
     this.shaderManager.init();
 }
@@ -54,6 +55,7 @@ function Scene(canvas) {
 Scene.Drawable = Drawable;
 Scene.Primitives = Primitives;
 Scene.Keyboard = Keyboard;
+Scene.LightManager = LightManager;
 
 Scene.prototype = {
     getProjectionMatrix: function() {
@@ -66,8 +68,17 @@ Scene.prototype = {
     addRenderable: function(renderable) {
         this.renderables.push(renderable);
     },
+    addCallable: function(func, context) {
+        this.callables.push({
+            func: func,
+            context: context
+        });
+    },
     addPointLight: function(light) {
         this.lightManager.addPointLight(light);
+    },
+    addSpotLight: function(light) {
+        this.lightManager.addSpotLight(light);
     },
     loadTextures: function(textureList) {
         this.textureManager.init(textureList);
@@ -105,6 +116,9 @@ Scene.prototype = {
         this.drawables.forEach(function(drawable) {
             drawable.draw(this.shaderManager, this.textureManager, this.camera.getViewMatrix(), this.getProjectionMatrix());
         }.bind(this));
+        this.callables.forEach(function(callable) {
+            callable.func.call(callable.context);
+        });
     },
     render: function() {
         window.gl.clearColor(0.0, 0.0, 0.0, 1.0);

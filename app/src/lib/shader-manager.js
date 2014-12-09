@@ -82,20 +82,16 @@ ShaderManager.prototype = {
         this.bindUniform("uNormalMatrix");
         this.bindUniform("textureSamplers");
         this.bindUniform("uColor");
+        this.bindUniform("uUseLight");
         this.bindUniform("texturesCount");
         this.bindUniform("directionalLightsCount");
+        this.bindUniform("spotLightsCount");
         this.bindUniform("pointLightsCount");
         this.bindUniform("spotLightsCount");
         this.bindUniform("uUseFog");
         this.bindUniform("uFogColor");
         this.bindUniform("uFogMinDistance");
         this.bindUniform("uFogMaxDistance");
-        this.bindUniform("pointLights[0].position");
-        this.bindUniform("pointLights[0].diffuseColor");
-        this.bindUniform("pointLights[0].ambientColor");
-        this.bindUniform("pointLights[0].constantAttenuation");
-        this.bindUniform("pointLights[0].linearAttenuation");
-        this.bindUniform("pointLights[0].exponentAttenuation");
     },
     init: function() {
         this.createShaders();

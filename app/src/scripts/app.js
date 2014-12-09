@@ -51,16 +51,6 @@ $(document).ready(function() {
     scene.addDrawable(wall1);
     scene.addRenderable(wall1);
 
-    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
-    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
-    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
-    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
-    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
-    wallPanel.enableTextureScaling();
-    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
-    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
-    scene.addDrawable(wallPanel);
-
     var wall3 = new Scene.Drawable(Scene.Primitives.Rectangle);
     wall3.addTexture(window.gl.TEXTURE0, "crowd");
     wall3.transform(mat4.rotateY, 90 * Math.PI / 180);
@@ -76,6 +66,17 @@ $(document).ready(function() {
     scene.addDrawable(wall4);
     scene.addRenderable(wall4);
 
+    var wallPanel = new Scene.Drawable(Scene.Primitives.Rectangle);
+    wallPanel.addTexture(window.gl.TEXTURE0, "render_texture");
+    wallPanel.transform(mat4.rotateY, -90 * Math.PI / 180);
+    wallPanel.transform(mat4.scale, vec3.fromValues(20.0, 4.0, 20.0));
+    wallPanel.transform(mat4.translate, vec3.fromValues(0.0, 0.0, -1.0));
+    wallPanel.enableTextureScaling();
+    wallPanel.setLight(false);
+    scene.bindKey(Scene.Keyboard.Keys.C, wallPanel, wallPanel.shrinkTexture);
+    scene.bindKey(Scene.Keyboard.Keys.V, wallPanel, wallPanel.enlargeTexture);
+    scene.addDrawable(wallPanel);
+
     var floor = new Scene.Drawable(Scene.Primitives.Rectangle);
     floor.addTexture(window.gl.TEXTURE0, "floor_1");
     floor.addTexture(window.gl.TEXTURE1, "signs");
@@ -88,7 +89,7 @@ $(document).ready(function() {
     scene.bindKey(Scene.Keyboard.Keys.X, this, function() { floor.setTexture(window.gl.TEXTURE0, "floor_2"); });
 
     var ceiling = new Scene.Drawable(Scene.Primitives.Rectangle);
-    ceiling.setColor(vec3.fromValues(0.7, 0.7, 0.7));
+    ceiling.setColor(vec3.fromValues(0.2, 0.2, 0.2));
     ceiling.transform(mat4.translate, vec3.fromValues(0.0, 4.0, 0.0));
     ceiling.transform(mat4.rotateX, 90 * Math.PI / 180);
     ceiling.transform(mat4.scale, vec3.fromValues(20.0, 20.0, 1.0));
@@ -116,7 +117,41 @@ $(document).ready(function() {
     scene.addDrawable(net);
     scene.addRenderable(net);
 
-    scene.addPointLight();
+    var pointLight = new Scene.LightManager.PointLight({
+        position: vec3.fromValues(0.0, 3.0, 0.0),
+        diffuseColor: vec3.fromValues(0.0, 0.0, 0.0),
+        ambientColor: vec3.fromValues(0.5, 0.5, 0.5)
+    });
+
+    scene.addPointLight(pointLight);
+
+    var spotLightCount = 4;
+
+    for (var i = 0; i < spotLightCount; i++) {
+        var diffuse = 0.3;
+        var direction = vec3.create();
+        var directionBase = vec3.fromValues(-0.5, -1.0, 0.0);
+        var rotationMatrix = mat4.create();
+        var angle = (360 * i / spotLightCount) * (Math.PI / 180);
+        mat4.rotateY(rotationMatrix, rotationMatrix, angle);
+        vec3.transformMat4(direction, directionBase, rotationMatrix);
+        var spotLight = new Scene.LightManager.SpotLight({
+            position: vec3.fromValues(0.0, 4.0, 0.0),
+            diffuseColor: vec3.fromValues(diffuse, diffuse, diffuse),
+            direction: direction,
+            outerAngle: 45.0,
+            innerAngle: 40.0,
+            range: 20.0
+        });
+
+        scene.addCallable(function() {
+            var rotationMatrix = mat4.create();
+            mat4.rotateY(rotationMatrix, rotationMatrix, Math.PI / 180);
+            vec3.transformMat4(this.direction, this.direction, rotationMatrix);
+        }, spotLight);
+
+        scene.addSpotLight(spotLight);
+    }
 
     scene.run();
 });
